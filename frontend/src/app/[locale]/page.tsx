@@ -3,7 +3,7 @@
 import { Header, Hero, CTASection, Footer } from "@/components/landing";
 import ChatBot from "@/components/ChatBot";
 
-// Deploy timestamp: 2026-05-07 20:42 - API connection enabled
+// Deploy timestamp: 2026-05-07 22:35 - Redeploy trigger
 export default function HomePage() {
   return (
     <div className="min-h-screen bg-white">
