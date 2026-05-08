@@ -24,7 +24,9 @@ services:
       - key: SMTP_FROM_NAME
         value: LeadGenPro
       - key: FRONTEND_URL
-        value: https://leadgenpro-app.vercel.app
+        value: https://leadgenpro-frontend.netlify.app
+      - key: CORS_ALLOW_ORIGINS
+        value: https://leadgenpro-frontend.netlify.app
       - key: PYTHON_VERSION
         value: 3.11.0
     healthCheckPath: /auth/ping
