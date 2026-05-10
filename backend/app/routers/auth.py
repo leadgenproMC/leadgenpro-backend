@@ -1,5 +1,5 @@
-"""
-Router de autenticación para LeadGenPro.
+﻿"""
+Router de autenticaciÃ³n para LeadGenPro.
 Endpoints: registro, login, perfil de usuario.
 """
 
@@ -30,7 +30,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 def hash_password(password: str) -> str:
-    """Genera hash bcrypt de una contraseña."""
+    """Genera hash bcrypt de una contraseÃ±a."""
     salt = bcrypt.gensalt(rounds=12)
     return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
 
@@ -90,7 +90,7 @@ def sign_up_user_direct(email: str, password: str, user_metadata: dict) -> tuple
                 return returned_id, None
             elif response.status_code == 422:
                 error_data = response.json()
-                error_msg = error_data.get("msg", "Usuario ya existe o datos inválidos")
+                error_msg = error_data.get("msg", "Usuario ya existe o datos invÃ¡lidos")
                 logger.error(f"[Direct API] Error 422: {error_msg}")
                 return None, f"Error creando usuario: {error_msg}"
             else:
@@ -106,8 +106,8 @@ def sign_up_user_direct(email: str, password: str, user_metadata: dict) -> tuple
             if attempt < max_retries - 1:
                 time.sleep(1)
                 continue
-            logger.error("[Direct API] Timeout después de todos los intentos")
-            # Intentar con librería supabase como último recurso
+            logger.error("[Direct API] Timeout despuÃ©s de todos los intentos")
+            # Intentar con librerÃ­a supabase como Ãºltimo recurso
             return sign_up_with_supabase_lib(email, password, user_metadata)
             
         except requests.exceptions.ConnectionError as e:
@@ -115,30 +115,30 @@ def sign_up_user_direct(email: str, password: str, user_metadata: dict) -> tuple
             if attempt < max_retries - 1:
                 time.sleep(1)
                 continue
-            logger.error(f"[Direct API] Error DNS después de todos los intentos")
-            # Intentar con librería supabase como último recurso
+            logger.error(f"[Direct API] Error DNS despuÃ©s de todos los intentos")
+            # Intentar con librerÃ­a supabase como Ãºltimo recurso
             return sign_up_with_supabase_lib(email, password, user_metadata)
             
         except requests.exceptions.RequestException as e:
-            logger.error(f"[Direct API] Error de conexión: {str(e)}")
+            logger.error(f"[Direct API] Error de conexiÃ³n: {str(e)}")
             if attempt < max_retries - 1:
                 time.sleep(1)
                 continue
-            return None, f"Error de conexión: {str(e)}"
+            return None, f"Error de conexiÃ³n: {str(e)}"
             
         except Exception as e:
             logger.error(f"[Direct API] Error inesperado: {str(e)}")
             return None, f"Error inesperado: {str(e)}"
     
-    return None, "Error desconocido después de reintentos"
+    return None, "Error desconocido despuÃ©s de reintentos"
 
 
 def sign_up_with_supabase_lib(email: str, password: str, user_metadata: dict) -> tuple:
     """
-    Fallback usando la librería de Supabase si requests falla.
+    Fallback usando la librerÃ­a de Supabase si requests falla.
     """
     try:
-        logger.info("[Fallback] Intentando con librería Supabase...")
+        logger.info("[Fallback] Intentando con librerÃ­a Supabase...")
         supabase = get_supabase()
         if not supabase:
             return None, "Supabase no configurado"
@@ -165,8 +165,8 @@ def sign_up_with_supabase_lib(email: str, password: str, user_metadata: dict) ->
 
 def verify_password_against_history(supabase, user_id: str, password: str) -> bool:
     """
-    Verifica si una contraseña fue usada anteriormente por el usuario.
-    Retorna True si la contraseña es nueva (no usada antes), False si ya fue usada.
+    Verifica si una contraseÃ±a fue usada anteriormente por el usuario.
+    Retorna True si la contraseÃ±a es nueva (no usada antes), False si ya fue usada.
     """
     try:
         result = supabase.table("password_history")\
@@ -180,18 +180,18 @@ def verify_password_against_history(supabase, user_id: str, password: str) -> bo
         for record in result.data:
             stored_hash = record["password_hash"].encode('utf-8')
             if bcrypt.checkpw(password.encode('utf-8'), stored_hash):
-                logger.warning(f"Contraseña previamente usada detectada para usuario {user_id}")
-                return False  # Contraseña ya fue usada
+                logger.warning(f"ContraseÃ±a previamente usada detectada para usuario {user_id}")
+                return False  # ContraseÃ±a ya fue usada
         
         return True  # No coincide con ninguna del historial
         
     except Exception as e:
-        logger.error(f"Error verificando historial de contraseñas: {str(e)}")
+        logger.error(f"Error verificando historial de contraseÃ±as: {str(e)}")
         return True  # En caso de error, permitimos el cambio
 
 
 def save_password_to_history(supabase, user_id: str, password: str, reason: str = "reset"):
-    """Guarda el hash de una contraseña en el historial."""
+    """Guarda el hash de una contraseÃ±a en el historial."""
     try:
         password_hash = hash_password(password)
         supabase.table("password_history").insert({
@@ -200,9 +200,9 @@ def save_password_to_history(supabase, user_id: str, password: str, reason: str 
             "reason": reason,
             "created_at": datetime.utcnow().isoformat()
         }).execute()
-        logger.info(f"Contraseña guardada en historial para usuario {user_id}")
+        logger.info(f"ContraseÃ±a guardada en historial para usuario {user_id}")
     except Exception as e:
-        logger.error(f"Error guardando contraseña en historial: {str(e)}")
+        logger.error(f"Error guardando contraseÃ±a en historial: {str(e)}")
 
 
 class RegisterRequest(BaseModel):
@@ -235,7 +235,7 @@ class UserResponse(BaseModel):
 
 
 class AuthResponse(BaseModel):
-    """Respuesta de autenticación."""
+    """Respuesta de autenticaciÃ³n."""
     success: bool
     user: Optional[UserResponse] = None
     token: Optional[str] = None
@@ -249,26 +249,26 @@ def register(request: RegisterRequest):
     Registra un nuevo usuario con nombre.
     
     - **email**: Email del usuario (requerido)
-    - **password**: Contraseña (mínimo 6 caracteres)
+    - **password**: ContraseÃ±a (mÃ­nimo 6 caracteres)
     - **name**: Nombre completo del usuario (requerido)
     - **agreed_to_terms**: Debe ser `true` para aceptar las Condiciones de Uso (obligatorio)
     """
     logger.info(f"=== INICIANDO REGISTRO ===")
     logger.info(f"Email: {request.email}, Name: {request.name}, Company: {request.company}")
     
-    # Validar que aceptó las condiciones
+    # Validar que aceptÃ³ las condiciones
     if not request.agreed_to_terms:
         logger.warning("Registro rechazado: agreed_to_terms es False")
         return AuthResponse(success=False, error="Debes aceptar las Condiciones de Uso para crear la cuenta")
     
     supabase = get_supabase()
     if not supabase:
-        logger.error("Supabase no configurado - get_supabase() retornó None")
+        logger.error("Supabase no configurado - get_supabase() retornÃ³ None")
         raise HTTPException(status_code=503, detail="Supabase no configurado")
     
     logger.info("Supabase client obtenido correctamente")
     
-    # Usar API REST directa para evitar timeout de la librería
+    # Usar API REST directa para evitar timeout de la librerÃ­a
     user_metadata = {
         "name": request.name,
         "company": request.company,
@@ -298,19 +298,19 @@ def register(request: RegisterRequest):
         logger.info(f"Insert en tabla users exitoso: {insert_result}")
     except Exception as insert_err:
         logger.error(f"ERROR al insertar en tabla users: {str(insert_err)}")
-        # No fallamos aquí, el usuario ya fue creado en Auth
+        # No fallamos aquÃ­, el usuario ya fue creado en Auth
     
-    # Generar código OTP de verificación
+    # Generar cÃ³digo OTP de verificaciÃ³n
     otp_code = None
     try:
         from ..services.email_service import create_otp_code
         otp_code = create_otp_code(user_id, request.email, request.name)
         if otp_code:
-            logger.info(f"[REGISTRO] Código OTP generado para {request.email}: {otp_code}")
+            logger.info(f"[REGISTRO] CÃ³digo OTP generado para {request.email}: {otp_code}")
         else:
-            logger.warning(f"[REGISTRO] No se pudo generar código OTP para {request.email}")
+            logger.warning(f"[REGISTRO] No se pudo generar cÃ³digo OTP para {request.email}")
     except Exception as otp_err:
-        logger.error(f"[REGISTRO] Error generando código OTP: {str(otp_err)}")
+        logger.error(f"[REGISTRO] Error generando cÃ³digo OTP: {str(otp_err)}")
     
     return AuthResponse(
         success=True,
@@ -322,23 +322,23 @@ def register(request: RegisterRequest):
             created_at=datetime.utcnow().isoformat()
         ),
         token=None,
-        otp_code=otp_code  # Incluir código en la respuesta
+        otp_code=otp_code  # Incluir cÃ³digo en la respuesta
     )
 
 
 @router.post("/verify-otp")
 def verify_otp(request: dict):
     """
-    Verifica un código OTP numérico de 6 dígitos.
+    Verifica un cÃ³digo OTP numÃ©rico de 6 dÃ­gitos.
     
     - **email**: Email del usuario
-    - **code**: Código de 6 dígitos
+    - **code**: CÃ³digo de 6 dÃ­gitos
     """
     email = request.get("email")
     code = request.get("code")
     
     if not email or not code:
-        return {"success": False, "message": "Email y código son requeridos"}
+        return {"success": False, "message": "Email y cÃ³digo son requeridos"}
     
     from ..services.email_service import verify_otp_code
     success, message = verify_otp_code(email, code)
@@ -349,7 +349,7 @@ def verify_otp(request: dict):
 @router.post("/resend-otp")
 def resend_otp(request: dict):
     """
-    Genera y envía un nuevo código OTP al email.
+    Genera y envÃ­a un nuevo cÃ³digo OTP al email.
     
     - **email**: Email del usuario
     """
@@ -362,7 +362,7 @@ def resend_otp(request: dict):
     success, message, new_code = resend_otp_code(email)
     
     if success and new_code:
-        logger.info(f"[RESEND] Nuevo código generado para {email}: {new_code}")
+        logger.info(f"[RESEND] Nuevo cÃ³digo generado para {email}: {new_code}")
     
     return {
         "success": success,
@@ -374,8 +374,8 @@ def resend_otp(request: dict):
 @router.post("/login", response_model=AuthResponse)
 def login(request: LoginRequest):
     """
-    Inicia sesión y retorna datos del usuario incluyendo nombre.
-    Verifica que el email esté confirmado antes de permitir acceso.
+    Inicia sesiÃ³n y retorna datos del usuario incluyendo nombre.
+    Verifica que el email estÃ© confirmado antes de permitir acceso.
     """
     supabase = get_supabase()
     if not supabase:
@@ -392,7 +392,7 @@ def login(request: LoginRequest):
             result = supabase.table("users").select("*").eq("id", auth_response.user.id).execute()
             user_data = result.data[0] if result.data else {}
             
-            # Verificar si el email está confirmado
+            # Verificar si el email estÃ¡ confirmado
             if not user_data.get("email_confirmed", False):
                 logger.warning(f"Login bloqueado - email no confirmado: {request.email}")
                 return AuthResponse(
@@ -419,11 +419,11 @@ def login(request: LoginRequest):
                 token=auth_response.session.access_token
             )
         else:
-            return AuthResponse(success=False, error="Credenciales inválidas")
+            return AuthResponse(success=False, error="Credenciales invÃ¡lidas")
             
     except Exception as e:
         logger.error(f"Error en login: {str(e)}")
-        return AuthResponse(success=False, error="Email o contraseña incorrectos")
+        return AuthResponse(success=False, error="Email o contraseÃ±a incorrectos")
 
 
 @router.get("/me", response_model=UserResponse)
@@ -455,19 +455,19 @@ def get_current_user(user_id: str):
 # ============ PASSWORD RESET ENDPOINTS ============
 
 class ForgotPasswordRequest(BaseModel):
-    """Request para solicitar reset de contraseña."""
+    """Request para solicitar reset de contraseÃ±a."""
     email: EmailStr
     locale: str = "es"
 
 
 class ResetPasswordRequest(BaseModel):
-    """Request para resetear contraseña."""
+    """Request para resetear contraseÃ±a."""
     token: str
     password: str
 
 
 class PasswordResetResponse(BaseModel):
-    """Respuesta de reset de contraseña."""
+    """Respuesta de reset de contraseÃ±a."""
     success: bool
     error: Optional[str] = None
 
@@ -475,12 +475,12 @@ class PasswordResetResponse(BaseModel):
 @router.post("/forgot-password", response_model=PasswordResetResponse)
 def forgot_password(request: ForgotPasswordRequest):
     """
-    Envía email con enlace para restablecer contraseña.
+    EnvÃ­a email con enlace para restablecer contraseÃ±a.
     
     - **email**: Email del usuario registrado
     - **locale**: Idioma para el email (es/en)
     """
-    logger.info(f"=== SOLICITUD DE RESET DE CONTRASEÑA ===")
+    logger.info(f"=== SOLICITUD DE RESET DE CONTRASEÃ‘A ===")
     logger.info(f"Email: {request.email}, Locale: {request.locale}")
     
     supabase = get_supabase()
@@ -492,7 +492,7 @@ def forgot_password(request: ForgotPasswordRequest):
         # Primero verificar si el usuario existe
         logger.info(f"Verificando si existe usuario con email: {request.email}")
         
-        # Usar Supabase Auth para enviar email de recuperación
+        # Usar Supabase Auth para enviar email de recuperaciÃ³n
         redirect_url = f"http://localhost:3000/{request.locale}/reset-password"
         logger.info(f"Redirect URL: {redirect_url}")
         
@@ -509,7 +509,7 @@ def forgot_password(request: ForgotPasswordRequest):
     except Exception as e:
         logger.error(f"Error enviando email de reset: {str(e)}")
         logger.error(f"Traceback: {traceback.format_exc()}")
-        # Retornamos el error real para debugging (en producción ocultar)
+        # Retornamos el error real para debugging (en producciÃ³n ocultar)
         return PasswordResetResponse(
             success=False,
             error=str(e)
@@ -519,14 +519,14 @@ def forgot_password(request: ForgotPasswordRequest):
 @router.post("/reset-password", response_model=PasswordResetResponse)
 def reset_password(request: ResetPasswordRequest):
     """
-    Cambia la contraseña del usuario usando token de recuperación.
+    Cambia la contraseÃ±a del usuario usando token de recuperaciÃ³n.
     
-    - **token**: Token de recuperación recibido por email
-    - **password**: Nueva contraseña (mínimo 6 caracteres)
+    - **token**: Token de recuperaciÃ³n recibido por email
+    - **password**: Nueva contraseÃ±a (mÃ­nimo 6 caracteres)
     
-    Valida que la nueva contraseña no haya sido usada anteriormente.
+    Valida que la nueva contraseÃ±a no haya sido usada anteriormente.
     """
-    logger.info(f"=== RESET DE CONTRASEÑA ===")
+    logger.info(f"=== RESET DE CONTRASEÃ‘A ===")
     
     if len(request.password) < 6:
         return PasswordResetResponse(success=False, error="PASSWORD_TOO_SHORT")
@@ -537,44 +537,44 @@ def reset_password(request: ResetPasswordRequest):
         raise HTTPException(status_code=503, detail="Supabase no configurado")
     
     try:
-        # Obtener el usuario actual (debe estar autenticado con el token de recuperación)
-        # El token se valida automáticamente por Supabase cuando el usuario llega a la página
+        # Obtener el usuario actual (debe estar autenticado con el token de recuperaciÃ³n)
+        # El token se valida automÃ¡ticamente por Supabase cuando el usuario llega a la pÃ¡gina
         
-        # Primero intentamos obtener la sesión actual
+        # Primero intentamos obtener la sesiÃ³n actual
         session_result = supabase.auth.get_session()
         user = getattr(session_result, 'user', None)
         
         if not user:
-            logger.error("No hay sesión activa - el token puede haber expirado")
+            logger.error("No hay sesiÃ³n activa - el token puede haber expirado")
             return PasswordResetResponse(success=False, error="INVALID_OR_EXPIRED_TOKEN")
         
         user_id = user.id
         logger.info(f"Usuario autenticado para reset: {user_id}")
         
-        # Verificar que la contraseña no fue usada antes
+        # Verificar que la contraseÃ±a no fue usada antes
         is_new_password = verify_password_against_history(supabase, user_id, request.password)
         
         if not is_new_password:
-            logger.warning(f"Usuario {user_id} intentó usar una contraseña previamente usada")
+            logger.warning(f"Usuario {user_id} intentÃ³ usar una contraseÃ±a previamente usada")
             return PasswordResetResponse(success=False, error="SAME_PASSWORD")
         
-        # Actualizar contraseña en Supabase Auth
+        # Actualizar contraseÃ±a en Supabase Auth
         result = supabase.auth.update_user({"password": request.password})
         
         if result.user:
-            logger.info(f"Contraseña actualizada correctamente para usuario {user_id}")
+            logger.info(f"ContraseÃ±a actualizada correctamente para usuario {user_id}")
             
-            # Guardar la nueva contraseña en el historial
+            # Guardar la nueva contraseÃ±a en el historial
             save_password_to_history(supabase, user_id, request.password, reason="reset")
             
             return PasswordResetResponse(success=True)
         else:
-            logger.error("No se pudo actualizar la contraseña")
+            logger.error("No se pudo actualizar la contraseÃ±a")
             return PasswordResetResponse(success=False, error="UPDATE_FAILED")
             
     except Exception as e:
         error_msg = str(e)
-        logger.error(f"Error actualizando contraseña: {error_msg}")
+        logger.error(f"Error actualizando contraseÃ±a: {error_msg}")
         logger.error(f"Traceback: {traceback.format_exc()}")
         return PasswordResetResponse(success=False, error=f"RESET_FAILED: {error_msg}")
 
@@ -582,27 +582,27 @@ def reset_password(request: ResetPasswordRequest):
 @router.post("/verify-password-hash", response_model=PasswordResetResponse)
 def verify_password_not_same(email: str, password: str):
     """
-    Verifica que la nueva contraseña no sea igual a la anterior.
-    Intenta hacer login con la nueva contraseña - si funciona, es la misma.
+    Verifica que la nueva contraseÃ±a no sea igual a la anterior.
+    Intenta hacer login con la nueva contraseÃ±a - si funciona, es la misma.
     """
     supabase = get_supabase()
     if not supabase:
         raise HTTPException(status_code=503, detail="Supabase no configurado")
     
     try:
-        # Intentar login con la nueva contraseña
-        # Si funciona, significa que es la misma contraseña actual
+        # Intentar login con la nueva contraseÃ±a
+        # Si funciona, significa que es la misma contraseÃ±a actual
         auth_response = supabase.auth.sign_in_with_password({
             "email": email,
             "password": password
         })
         
-        # Si llegamos aquí, el login funcionó -> misma contraseña
+        # Si llegamos aquÃ­, el login funcionÃ³ -> misma contraseÃ±a
         if auth_response.user:
             return PasswordResetResponse(success=False, error="SAME_PASSWORD")
             
     except Exception:
-        # El login falló -> contraseña es diferente -> OK
+        # El login fallÃ³ -> contraseÃ±a es diferente -> OK
         return PasswordResetResponse(success=True)
     
     return PasswordResetResponse(success=True)
@@ -611,22 +611,22 @@ def verify_password_not_same(email: str, password: str):
 # ============ EMAIL CONFIRMATION ENDPOINTS ============
 
 class SendConfirmationRequest(BaseModel):
-    """Request para enviar email de confirmación."""
+    """Request para enviar email de confirmaciÃ³n."""
     email: EmailStr
     locale: Optional[str] = "es"
 
 
 class VerifyConfirmationRequest(BaseModel):
-    """Request para verificar token de confirmación."""
+    """Request para verificar token de confirmaciÃ³n."""
     token: str
 
 
 @router.post("/send-confirmation")
 def send_confirmation(request: SendConfirmationRequest):
     """
-    Envía email de confirmación al usuario.
+    EnvÃ­a email de confirmaciÃ³n al usuario.
     """
-    logger.info(f"Solicitud de confirmación para: {request.email}")
+    logger.info(f"Solicitud de confirmaciÃ³n para: {request.email}")
     
     supabase = get_supabase()
     if not supabase:
@@ -640,11 +640,11 @@ def send_confirmation(request: SendConfirmationRequest):
     
     if not result.data:
         # No revelamos si el email existe o no (seguridad)
-        return {"success": True, "message": "Si el email existe, recibirás un mensaje"}
+        return {"success": True, "message": "Si el email existe, recibirÃ¡s un mensaje"}
     
     user = result.data[0]
     
-    # Verificar si ya está confirmado
+    # Verificar si ya estÃ¡ confirmado
     if user.get("email_confirmed"):
         return {"success": True, "message": "Email ya confirmado"}
     
@@ -664,7 +664,7 @@ def send_confirmation(request: SendConfirmationRequest):
     if email_sent:
         return {
             "success": True, 
-            "message": "Email de confirmación enviado",
+            "message": "Email de confirmaciÃ³n enviado",
             "debug_token": token if os.getenv("DEBUG") else None
         }
     else:
@@ -683,7 +683,7 @@ def ping():
 @router.post("/verify-email")
 def verify_email(request: VerifyConfirmationRequest):
     """
-    Verifica el token de confirmación de email.
+    Verifica el token de confirmaciÃ³n de email.
     """
     logger.info(f"Verificando token: {request.token[:10]}...")
     
@@ -695,13 +695,13 @@ def verify_email(request: VerifyConfirmationRequest):
     }
 
 
-# ============ ENDPOINT DE DIAGNÓSTICO ============
+# ============ ENDPOINT DE DIAGNÃ“STICO ============
 
 @router.get("/test-supabase")
 def test_supabase_connection():
     """
-    Endpoint de diagnóstico para verificar la conexión con Supabase.
-    Muestra información de configuración y estado.
+    Endpoint de diagnÃ³stico para verificar la conexiÃ³n con Supabase.
+    Muestra informaciÃ³n de configuraciÃ³n y estado.
     """
     import os
     
@@ -720,7 +720,7 @@ def test_supabase_connection():
         supabase = get_supabase()
         
         if not supabase:
-            result["supabase_client"] = "NO CREADO - get_supabase() retornó None"
+            result["supabase_client"] = "NO CREADO - get_supabase() retornÃ³ None"
             return result
         
         result["supabase_client"] = "CONECTADO"
@@ -751,7 +751,7 @@ def test_supabase_connection():
 def delete_all_users():
     """
     Endpoint temporal para eliminar TODOS los usuarios y datos asociados.
-    ⚠️ USAR CON PRECAUCIÓN - Solo para desarrollo/testing.
+    âš ï¸ USAR CON PRECAUCIÃ“N - Solo para desarrollo/testing.
     """
     try:
         supabase = get_supabase()
@@ -765,7 +765,7 @@ def delete_all_users():
             "errors": []
         }
         
-        # 1. Eliminar tokens de confirmación
+        # 1. Eliminar tokens de confirmaciÃ³n
         try:
             tokens_result = supabase.table("email_confirmation_tokens").delete().neq("id", "00000000-0000-0000-0000-000000000000").execute()
             results["tokens_deleted"] = len(tokens_result.data) if tokens_result.data else 0
@@ -804,3 +804,51 @@ def delete_all_users():
     except Exception as e:
         logger.error(f"[DELETE-ALL] Error general: {str(e)}")
         return {"success": False, "error": str(e)}
+
+# ============ ENDPOINT PARA VER TODAS LAS VARIABLES ============
+
+@router.get("/debug-env")
+def debug_all_env():
+    \"\"\"Endpoint de depuraciÃ³n para ver todas las variables de entorno.\"\"\"
+    import os
+    
+    # Variables especÃ­ficas que buscamos
+    target_vars = [
+        "SUPABASE_URL",
+        "SUPABASE_SECRET_KEY", 
+        "SMTP_HOST",
+        "SMTP_PORT",
+        "SMTP_USER",
+        "SMTP_PASSWORD",
+        "SMTP_FROM",
+        "SMTP_FROM_NAME",
+        "FRONTEND_URL",
+        "CORS_ALLOW_ORIGINS",
+        "PYTHON_VERSION"
+    ]
+    
+    result = {
+        "target_variables": {},
+        "all_env_vars_count": len(os.environ),
+        "sample_env_vars": {}
+    }
+    
+    # Verificar variables especÃ­ficas
+    for var in target_vars:
+        value = os.getenv(var)
+        if value:
+            # Ocultar valores sensibles
+            if "SECRET" in var or "PASSWORD" in var:
+                result["target_variables"][var] = f"***{len(value)} chars***"
+            else:
+                result["target_variables"][var] = value
+        else:
+            result["target_variables"][var] = "NOT_FOUND"
+    
+    # Mostrar algunas variables del sistema (sin sensibles)
+    safe_vars = ["PATH", "HOME", "PWD", "PORT", "PYTHONPATH"]
+    for var in safe_vars:
+        if var in os.environ:
+            result["sample_env_vars"][var] = str(os.environ[var])[:100] + "..." if len(str(os.environ[var])) > 100 else os.environ[var]
+    
+    return result
