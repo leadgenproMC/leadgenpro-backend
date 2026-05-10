@@ -1,3 +1,5 @@
+﻿# Auto-deploy trigger - 2026-05-10 12:49:44
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
@@ -26,7 +28,7 @@ app.add_middleware(
 
 @app.get("/")
 def root():
-    """Redirige a la documentación."""
+    """Redirige a la documentaciÃ³n."""
     return RedirectResponse(url="/docs")
 
 app.include_router(health_router)
@@ -35,3 +37,4 @@ app.include_router(credits_router, prefix="/credits", tags=["credits"])
 app.include_router(leads_router, prefix="/leads", tags=["leads"])
 app.include_router(chat_router, prefix="/chat", tags=["chat"])
 app.include_router(mailerlite_router)
+
