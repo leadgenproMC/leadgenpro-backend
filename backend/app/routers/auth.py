@@ -293,7 +293,7 @@ def register(request: RegisterRequest):
             "company": request.company,
             "agreed_to_terms": request.agreed_to_terms,
             "created_at": datetime.utcnow().isoformat(),
-            "email_confirmed": False  # Marcar como no confirmado
+            "email_confirmed": True  # Marcar como confirmado para login inmediato
         }).execute()
         logger.info(f"Insert en tabla users exitoso: {insert_result}")
     except Exception as insert_err:
