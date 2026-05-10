@@ -61,7 +61,7 @@ def sign_up_user_direct(email: str, password: str, user_metadata: dict) -> tuple
         "id": user_id,
         "email": email,
         "password": password,
-        "email_confirm": False,
+        "email_confirm": True,
         "user_metadata": user_metadata,
         "app_metadata": {},
         "phone": None,
@@ -910,3 +910,4 @@ def cleanup_test_users():
         "users": deleted_users,
         "message": f"Se eliminaron {deleted_count} usuarios de prueba"
     }
+
