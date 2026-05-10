@@ -852,3 +852,61 @@ def debug_all_env():
             result["sample_env_vars"][var] = str(os.environ[var])[:100] + "..." if len(str(os.environ[var])) > 100 else os.environ[var]
     
     return result
+
+# ============ ENDPOINT DE LIMPIEZA ============
+
+@router.post("/cleanup-test-users")
+def cleanup_test_users():
+    \"\"\"Endpoint para eliminar usuarios de prueba.\"\"\"
+    import os
+    import requests
+    
+    supabase_url = os.getenv("SUPABASE_URL")
+    supabase_key = os.getenv("SUPABASE_SECRET_KEY")
+    
+    if not supabase_url or not supabase_key:
+        return {"success": False, "error": "Supabase no configurado"}
+    
+    # Usuarios de prueba a eliminar
+    test_emails = ["test@example.com", "demo@test.com", "user@test.com", "admin@test.com"]
+    
+    deleted_count = 0
+    deleted_users = []
+    
+    for email in test_emails:
+        try:
+            # Buscar usuario por email
+            url = f"{supabase_url}/rest/v1/rpc/get_user_id"
+            headers = {
+                "Authorization": f"Bearer {supabase_key}",
+                "Content-Type": "application/json",
+                "apikey": supabase_key
+            }
+            
+            response = requests.post(url, json={"email": email}, headers=headers, timeout=10)
+            
+            if response.status_code == 200:
+                user_data = response.json()
+                if user_data:
+                    user_id = user_data.get("user_id")
+                    
+                    # Eliminar usuario
+                    delete_url = f"{supabase_url}/auth/v1/admin/users/{user_id}"
+                    delete_response = requests.delete(delete_url, headers=headers, timeout=10)
+                    
+                    if delete_response.status_code == 200:
+                        deleted_count += 1
+                        deleted_users.append(email)
+                        logger.info(f"Usuario eliminado: {email}")
+                    else:
+                        logger.error(f"Error eliminando {email}: {delete_response.text}")
+                        
+        except Exception as e:
+            logger.error(f"Error procesando {email}: {str(e)}")
+    
+    return {
+        "success": True,
+        "deleted_count": deleted_count,
+        "users": deleted_users,
+        "message": f"Se eliminaron {deleted_count} usuarios de prueba"
+    }
