@@ -41,7 +41,7 @@ def sign_up_user_direct(email: str, password: str, user_metadata: dict) -> tuple
     Retorna (user_id, error_message)
     """
     supabase_url = os.getenv("SUPABASE_URL")
-    supabase_key = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+    supabase_key = os.getenv("SUPABASE_SECRET_KEY")
     
     if not supabase_url or not supabase_key:
         return None, "Supabase no configurado"
@@ -708,7 +708,7 @@ def test_supabase_connection():
     result = {
         "env_vars": {
             "SUPABASE_URL": os.getenv("SUPABASE_URL", "NO CONFIGURADO"),
-            "SUPABASE_KEY_PRESENT": bool(os.getenv("SUPABASE_SERVICE_ROLE_KEY")),
+            "SUPABASE_KEY_PRESENT": bool(os.getenv("SUPABASE_SECRET_KEY")),
         },
         "supabase_client": None,
         "auth_test": None,
