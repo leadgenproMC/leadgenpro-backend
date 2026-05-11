@@ -300,14 +300,34 @@ def register(request: RegisterRequest):
         logger.error(f"ERROR al insertar en tabla users: {str(insert_err)}")
         # No fallamos aquÃ­, el usuario ya fue creado en Auth
     
-    # TEMPORALMENTE DESACTIVADO: Generar código OTP de verificación
-    # otp_code = None
-    # try:
-    #     from ..services.email_service import create_otp_code
-    #     otp_code = create_otp_code(user_id, request.email, request.name)
-    #     logger.info(f"[REGISTRO] Código OTP generado para {request.email}: {otp_code}")
-    # except Exception as otp_err:
-    #     logger.error(f"[REGISTRO] Error generando código OTP: {str(otp_err)}")
+    # Generar token de verificación por email
+    verification_token = None
+    try:
+        import secrets
+        verification_token = secrets.token_urlsafe(32)
+        logger.info(f"[REGISTRO] Token generado para {request.email}: {verification_token}")
+        
+        # Guardar token en base de datos
+        supabase.table("email_verifications").insert({
+            "email": request.email,
+            "token": verification_token,
+            "user_id": user_id,
+            "expires_at": (datetime.utcnow() + timedelta(hours=24)).isoformat(),
+            "created_at": datetime.utcnow().isoformat()
+        }).execute()
+        
+    except Exception as token_err:
+        logger.error(f"[REGISTRO] Error generando token: {str(token_err)}")
+        verification_token = None
+    
+    # Enviar email con link de verificación
+    try:
+        from ..services.email_service import send_verification_email
+        verification_link = f"https://leadgenpro-frontend.netlify.app/verify-email?token={verification_token}"
+        send_verification_email(request.email, request.name, verification_link)
+        logger.info(f"[Email] Email de verificación enviado a: {request.email}")
+    except Exception as email_err:
+        logger.error(f"[Email] Error enviando email: {str(email_err)}")
     
     return AuthResponse(
         success=True,
@@ -319,34 +339,68 @@ def register(request: RegisterRequest):
             created_at=datetime.utcnow().isoformat()
         ),
         token=None,
-        otp_code=otp_code  # Incluir cÃ³digo en la respuesta
+        verification_token=verification_token  # Para desarrollo/debug
     )
 
 
-@router.post("/verify-otp")
-def verify_otp(request: dict):
+@router.post("/verify-email")
+def verify_email(request: dict):
     """
-    Verifica un cÃ³digo OTP numÃ©rico de 6 dÃ­gitos.
+    Verifica el email usando un token de enlace.
     
-    - **email**: Email del usuario
-    - **code**: CÃ³digo de 6 dÃ­gitos
+    - **token**: Token de verificación recibido por email
     """
-    email = request.get("email")
-    code = request.get("code")
+    token = request.get("token")
     
-    if not email or not code:
-        return {"success": False, "message": "Email y cÃ³digo son requeridos"}
+    if not token:
+        return {"success": False, "message": "Token es requerido"}
     
-    from ..services.email_service import verify_otp_code
-    success, message = verify_otp_code(email, code)
-    
-    return {"success": success, "message": message}
+    try:
+        supabase = get_supabase()
+        if not supabase:
+            return {"success": False, "message": "Error de configuración"}
+        
+        # Buscar token en base de datos
+        result = supabase.table("email_verifications")\
+            .select("*")\
+            .eq("token", token)\
+            .execute()
+        
+        if not result.data:
+            return {"success": False, "message": "Token inválido o expirado"}
+        
+        verification = result.data[0]
+        
+        # Verificar si no ha expirado
+        expires_at = datetime.fromisoformat(verification["expires_at"].replace('Z', '+00:00'))
+        if datetime.utcnow() > expires_at:
+            return {"success": False, "message": "Token expirado"}
+        
+        # Marcar email como confirmado
+        supabase.table("users")\
+            .update({"email_confirmed": True})\
+            .eq("id", verification["user_id"])\
+            .execute()
+        
+        # Eliminar token usado
+        supabase.table("email_verifications")\
+            .delete()\
+            .eq("token", token)\
+            .execute()
+        
+        logger.info(f"[VERIFY] Email confirmado para usuario: {verification['user_id']}")
+        
+        return {"success": True, "message": "Email verificado correctamente"}
+        
+    except Exception as e:
+        logger.error(f"[VERIFY] Error verificando email: {str(e)}")
+        return {"success": False, "message": "Error verificando email"}
 
 
-@router.post("/resend-otp")
-def resend_otp(request: dict):
+@router.post("/resend-verification")
+def resend_verification(request: dict):
     """
-    Genera y envÃ­a un nuevo cÃ³digo OTP al email.
+    Genera y envÃ­a un nuevo link de verificación al email.
     
     - **email**: Email del usuario
     """
@@ -355,17 +409,56 @@ def resend_otp(request: dict):
     if not email:
         return {"success": False, "message": "Email es requerido"}
     
-    from ..services.email_service import resend_otp_code
-    success, message, new_code = resend_otp_code(email)
-    
-    if success and new_code:
-        logger.info(f"[RESEND] Nuevo cÃ³digo generado para {email}: {new_code}")
-    
-    return {
-        "success": success,
-        "message": message,
-        "debug_code": new_code if os.getenv("DEBUG") else None
-    }
+    try:
+        import secrets
+        verification_token = secrets.token_urlsafe(32)
+        logger.info(f"[RESEND] Nuevo token generado para {email}: {verification_token}")
+        
+        # Buscar usuario existente
+        supabase = get_supabase()
+        if not supabase:
+            return {"success": False, "message": "Error de configuración"}
+        
+        user_result = supabase.table("users")\
+            .select("id, name")\
+            .eq("email", email)\
+            .execute()
+        
+        if not user_result.data:
+            return {"success": False, "message": "Email no registrado"}
+        
+        user = user_result.data[0]
+        
+        # Guardar nuevo token
+        supabase.table("email_verifications").insert({
+            "email": email,
+            "token": verification_token,
+            "user_id": user["id"],
+            "expires_at": (datetime.utcnow() + timedelta(hours=24)).isoformat(),
+            "created_at": datetime.utcnow().isoformat()
+        }).execute()
+        
+        # Enviar nuevo email
+        verification_link = f"https://leadgenpro-frontend.netlify.app/verify-email?token={verification_token}"
+        
+        try:
+            from ..services.email_service import send_verification_email
+            send_verification_email(email, user["name"], verification_link)
+            logger.info(f"[RESEND] Email de verificación enviado a: {email}")
+            
+            return {
+                "success": True,
+                "message": "Email de verificación reenviado",
+                "debug_link": verification_link if os.getenv("DEBUG") else None
+            }
+            
+        except Exception as email_err:
+            logger.error(f"[RESEND] Error enviando email: {str(email_err)}")
+            return {"success": False, "message": "Error enviando email"}
+        
+    except Exception as e:
+        logger.error(f"[RESEND] Error general: {str(e)}")
+        return {"success": False, "message": "Error del servidor"}
 
 
 @router.post("/login", response_model=AuthResponse)
