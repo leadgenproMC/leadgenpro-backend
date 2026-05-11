@@ -857,7 +857,7 @@ def debug_all_env():
 
 @router.post("/cleanup-test-users")
 def cleanup_test_users():
-    \"\"\"Endpoint para eliminar usuarios de prueba.\"\"\"
+    """Endpoint para eliminar usuarios de prueba."""
     import os
     import requests
     
