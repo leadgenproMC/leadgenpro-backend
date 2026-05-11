@@ -809,7 +809,7 @@ def delete_all_users():
 
 @router.get("/debug-env")
 def debug_all_env():
-    \"\"\"Endpoint de depuraciÃ³n para ver todas las variables de entorno.\"\"\"
+    """Endpoint de depuración para ver todas las variables de entorno."""
     import os
     
     # Variables especÃ­ficas que buscamos
