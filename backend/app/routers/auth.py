@@ -300,17 +300,14 @@ def register(request: RegisterRequest):
         logger.error(f"ERROR al insertar en tabla users: {str(insert_err)}")
         # No fallamos aquÃ­, el usuario ya fue creado en Auth
     
-    # Generar cÃ³digo OTP de verificaciÃ³n
-    otp_code = None
-    try:
-        from ..services.email_service import create_otp_code
-        otp_code = create_otp_code(user_id, request.email, request.name)
-        if otp_code:
-            logger.info(f"[REGISTRO] CÃ³digo OTP generado para {request.email}: {otp_code}")
-        else:
-            logger.warning(f"[REGISTRO] No se pudo generar cÃ³digo OTP para {request.email}")
-    except Exception as otp_err:
-        logger.error(f"[REGISTRO] Error generando cÃ³digo OTP: {str(otp_err)}")
+    # TEMPORALMENTE DESACTIVADO: Generar código OTP de verificación
+    # otp_code = None
+    # try:
+    #     from ..services.email_service import create_otp_code
+    #     otp_code = create_otp_code(user_id, request.email, request.name)
+    #     logger.info(f"[REGISTRO] Código OTP generado para {request.email}: {otp_code}")
+    # except Exception as otp_err:
+    #     logger.error(f"[REGISTRO] Error generando código OTP: {str(otp_err)}")
     
     return AuthResponse(
         success=True,
