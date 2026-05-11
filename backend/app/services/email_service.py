@@ -458,3 +458,113 @@ def resend_otp_code(email: str) -> tuple[bool, str, Optional[str]]:
     except Exception as e:
         logger.error(f"[ResendOTP] Error: {str(e)}")
         return False, f"Error: {str(e)}", None
+
+
+def send_verification_email(email: str, name: str, verification_link: str) -> bool:
+    """
+    Envía email de verificación con link de confirmación.
+    Retorna True si se envió correctamente.
+    """
+    try:
+        logger.info(f"[VerificationEmail] Enviando email a: {email}")
+        
+        # Asunto y mensaje
+        subject = "Verifica tu email en LeadGenPro"
+        
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Verifica tu email</title>
+            <style>
+                body {{
+                    font-family: Arial, sans-serif;
+                    line-height: 1.6;
+                    color: #333;
+                    max-width: 600px;
+                    margin: 0 auto;
+                    padding: 20px;
+                }}
+                .header {{
+                    background: linear-gradient(135deg, #10b981, #059669);
+                    color: white;
+                    padding: 30px;
+                    text-align: center;
+                    border-radius: 10px 10px 0 0;
+                }}
+                .content {{
+                    background: #f9fafb;
+                    padding: 30px;
+                    border-radius: 0 0 10px 10px;
+                }}
+                .button {{
+                    display: inline-block;
+                    background: #10b981;
+                    color: white;
+                    padding: 15px 30px;
+                    text-decoration: none;
+                    border-radius: 5px;
+                    font-weight: bold;
+                    margin: 20px 0;
+                }}
+                .footer {{
+                    text-align: center;
+                    margin-top: 30px;
+                    color: #6b7280;
+                    font-size: 14px;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>¡Bienvenido a LeadGenPro!</h1>
+                <h2>Verifica tu email</h2>
+            </div>
+            
+            <div class="content">
+                <p>Hola {name},</p>
+                <p>Gracias por registrarte en LeadGenPro. Para completar tu registro y acceder a todas las funciones, por favor verifica tu email haciendo clic en el siguiente enlace:</p>
+                
+                <div style="text-align: center;">
+                    <a href="{verification_link}" class="button">Verificar Email</a>
+                </div>
+                
+                <p>Si el botón no funciona, también puedes copiar y pegar este enlace en tu navegador:</p>
+                <p style="word-break: break-all; background: #e5e7eb; padding: 10px; border-radius: 5px;">
+                    {verification_link}
+                </p>
+                
+                <p><strong>Importante:</strong> Este enlace expirará en 24 horas.</p>
+                
+                <p>Si no creaste esta cuenta, puedes ignorar este email.</p>
+            </div>
+            
+            <div class="footer">
+                <p>LeadGenPro - Tu plataforma de generación de leads</p>
+                <p>Este email fue enviado a {email}</p>
+            </div>
+        </body>
+        </html>
+        """
+        
+        # Enviar email
+        success = send_email(
+            to_email=email,
+            subject=subject,
+            html_content=html_content
+        )
+        
+        if success:
+            logger.info(f"[VerificationEmail] ÉXITO - Email enviado a {email}")
+            return True
+        else:
+            logger.error(f"[VerificationEmail] Error - No se pudo enviar email a {email}")
+            return False
+            
+    except Exception as e:
+        logger.error(f"[VerificationEmail] Error: {str(e)}")
+        import traceback
+        logger.error(f"[VerificationEmail] Traceback: {traceback.format_exc()}")
+        return False
