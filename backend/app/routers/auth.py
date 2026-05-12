@@ -302,6 +302,16 @@ def debug_endpoint():
     }
 
 
+@router.get("/test-simple")
+def test_simple():
+    """Endpoint ultra-simple para pruebas."""
+    return {
+        "status": "working",
+        "message": "Endpoint simple funcionando",
+        "timestamp": datetime.utcnow().isoformat()
+    }
+
+
 @router.post("/verify-email")
 def verify_email(request: dict):
     """
