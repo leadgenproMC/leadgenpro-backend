@@ -240,6 +240,7 @@ class AuthResponse(BaseModel):
     user: Optional[UserResponse] = None
     token: Optional[str] = None
     otp_code: Optional[str] = None
+    verification_token: Optional[str] = None
     error: Optional[str] = None
 
 
@@ -283,22 +284,25 @@ def register(request: RegisterRequest):
     
     logger.info(f"Usuario creado exitosamente via API directa: {user_id}")
     
-    # Guardar datos adicionales en tabla users
-    try:
-        logger.info(f"Insertando en tabla users - ID: {user_id}")
-        insert_result = supabase.table("users").insert({
-            "id": user_id,
-            "email": request.email,
-            "name": request.name,
-            "company": request.company,
-            "agreed_to_terms": request.agreed_to_terms,
-            "created_at": datetime.utcnow().isoformat(),
-            "email_confirmed": True  # Marcar como confirmado para login inmediato
-        }).execute()
-        logger.info(f"Insert en tabla users exitoso: {insert_result}")
-    except Exception as insert_err:
-        logger.error(f"ERROR al insertar en tabla users: {str(insert_err)}")
-        # No fallamos aquÃ­, el usuario ya fue creado en Auth
+    # OPTIMIZACIÓN: Guardar datos adicionales en tabla users de forma asíncrona
+    def save_user_data():
+        try:
+            logger.info(f"Insertando en tabla users - ID: {user_id}")
+            insert_result = supabase.table("users").insert({
+                "id": user_id,
+                "email": request.email,
+                "name": request.name,
+                "company": request.company,
+                "agreed_to_terms": request.agreed_to_terms,
+                "created_at": datetime.utcnow().isoformat(),
+                "email_confirmed": True  # Marcar como confirmado para login inmediato
+            }).execute()
+            logger.info(f"Insert en tabla users exitoso: {insert_result}")
+        except Exception as insert_err:
+            logger.error(f"ERROR al insertar en tabla users: {str(insert_err)}")
+    
+    # Iniciar guardado de datos en background
+    threading.Thread(target=save_user_data, daemon=True).start()
     
     # OPTIMIZACIÓN: Generar token de verificación de forma asíncrona
     verification_token = secrets.token_urlsafe(32) if True else None
