@@ -1,4 +1,4 @@
-﻿# Auto-deploy trigger - 2026-05-10 12:49:44
+﻿# Auto-deploy trigger - 2026-05-12 16:45:00 - FORCE REDEPLOY - FIX VERIFY-EMAIL
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
