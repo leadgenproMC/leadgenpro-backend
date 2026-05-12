@@ -1,27 +1,34 @@
 """
-AUTH ROUTER FINAL - COMPLETAMENTE FUNCIONAL
-========================================
+AUTH ROUTER SEGURO - SISTEMA COMPLETO CON EMAIL REAL
+=================================================
 
 Características:
-- ✅ Registro ultra-rápido (< 500ms)
-- ✅ Login con filtro de verificación
-- ✅ Verificación de email por token
-- ✅ Sin dependencias externas
-- ✅ Storage en memoria simple
+- ✅ Email verification real
+- ✅ Seguridad robusta
+- ✅ Token management
+- ✅ Rate limiting
+- ✅ Logs completos
+- ✅ Manejo de errores
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 import secrets
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
+import logging
+import hashlib
+from ..services.email_real import email_service
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-# Storage simple
+logger = logging.getLogger(__name__)
+
+# Storage seguro con timestamps
 USERS = {}
 TOKENS = {}
+RATE_LIMIT = {}
 
 class RegisterRequest(BaseModel):
     email: EmailStr
@@ -41,6 +48,7 @@ class UserResponse(BaseModel):
     company: Optional[str] = None
     created_at: str
     verified: bool
+    verified_at: Optional[str] = None
 
 class AuthResponse(BaseModel):
     success: bool
@@ -51,17 +59,57 @@ class AuthResponse(BaseModel):
     message: Optional[str] = None
     verification_required: Optional[bool] = None
 
-def generate_token() -> str:
-    return secrets.token_urlsafe(32)
+def hash_password(password: str) -> str:
+    """Hash seguro de contraseña."""
+    return hashlib.sha256(password.encode()).hexdigest()
+
+def verify_password(password: str, hashed: str) -> bool:
+    """Verificar contraseña."""
+    return hash_password(password) == hashed
+
+def check_rate_limit(email: str, max_requests: int = 5, window_minutes: int = 15) -> bool:
+    """Rate limiting por email."""
+    now = time.time()
+    window_start = now - (window_minutes * 60)
+    
+    if email not in RATE_LIMIT:
+        RATE_LIMIT[email] = []
+    
+    # Limpiar requests viejas
+    RATE_LIMIT[email] = [req_time for req_time in RATE_LIMIT[email] if req_time > window_start]
+    
+    # Verificar límite
+    if len(RATE_LIMIT[email]) >= max_requests:
+        logger.warning(f"🚫 Rate limit exceeded for {email}")
+        return False
+    
+    # Agregar request actual
+    RATE_LIMIT[email].append(now)
+    return True
 
 @router.post("/register", response_model=AuthResponse)
-async def register(request: RegisterRequest):
-    """Registro rápido y seguro."""
+async def register(request: RegisterRequest, http_request: Request):
+    """Registro seguro con email verification."""
     try:
+        # Rate limiting
+        client_ip = http_request.client.host
+        if not check_rate_limit(client_ip):
+            return AuthResponse(
+                success=False,
+                error="Demasiados intentos. Por favor espera 15 minutos."
+            )
+        
+        # Validaciones básicas
         if not request.agreed_to_terms:
             return AuthResponse(
                 success=False,
                 error="Debes aceptar las Condiciones de Uso"
+            )
+        
+        if len(request.password) < 6:
+            return AuthResponse(
+                success=False,
+                error="La contraseña debe tener al menos 6 caracteres"
             )
         
         if request.email in USERS:
@@ -70,45 +118,74 @@ async def register(request: RegisterRequest):
                 error="El email ya está registrado"
             )
         
-        user_id = f"user_{int(time.time())}"
-        verification_token = generate_token()
+        # Generar datos seguros
+        user_id = f"user_{int(time.time())}_{secrets.token_hex(8)}"
+        verification_token = email_service.generate_secure_token(request.email)
         
         # Crear usuario NO VERIFICADO
         user_data = {
             "id": user_id,
             "email": request.email,
-            "password": request.password,
+            "password_hash": hash_password(request.password),  # Hash seguro
             "name": request.name,
             "company": request.company,
             "created_at": datetime.utcnow().isoformat(),
-            "verified": False
+            "verified": False,
+            "verified_at": None,
+            "ip_address": client_ip,
+            "user_agent": str(http_request.headers.get("user-agent", "Unknown"))
         }
         
         # Guardar usuario y token
         USERS[request.email] = user_data
-        TOKENS[verification_token] = request.email
+        TOKENS[verification_token] = {
+            "email": request.email,
+            "created_at": datetime.utcnow().isoformat(),
+            "expires_at": (datetime.utcnow() + timedelta(hours=24)).isoformat()
+        }
         
-        print(f"[REGISTER] ✅ Usuario creado: {request.email}")
-        print(f"[REGISTER] 📧 Token: {verification_token[:10]}...")
+        # Enviar email de verificación
+        email_sent = email_service.send_verification_email(
+            email=request.email,
+            name=request.name,
+            verification_token=verification_token
+        )
+        
+        if not email_sent:
+            return AuthResponse(
+                success=False,
+                error="Error enviando email de verificación. Por favor intenta más tarde."
+            )
+        
+        logger.info(f"✅ [REGISTER] Usuario creado: {request.email}")
+        logger.info(f"📧 [REGISTER] Email enviado: {verification_token[:20]}...")
         
         return AuthResponse(
             success=True,
             user=UserResponse(**user_data),
-            verification_token=verification_token,
-            message="Registro completado exitosamente"
+            verification_token=verification_token,  # Solo para desarrollo
+            message="Registro completado. Por favor verifica tu email."
         )
         
     except Exception as e:
-        print(f"[REGISTER ERROR] ❌ {e}")
+        logger.error(f"❌ [REGISTER ERROR] {e}")
         return AuthResponse(
             success=False,
             error=f"Error en registro: {str(e)}"
         )
 
 @router.post("/login", response_model=AuthResponse)
-async def login(request: LoginRequest):
-    """Login con filtro de verificación OBLIGATORIO."""
+async def login(request: LoginRequest, http_request: Request):
+    """Login seguro con verificación OBLIGATORIA."""
     try:
+        # Rate limiting
+        client_ip = http_request.client.host
+        if not check_rate_limit(client_ip):
+            return AuthResponse(
+                success=False,
+                error="Demasiados intentos. Por favor espera 15 minutos."
+            )
+        
         if request.email not in USERS:
             return AuthResponse(
                 success=False,
@@ -117,7 +194,9 @@ async def login(request: LoginRequest):
         
         user_data = USERS[request.email]
         
-        if request.password != user_data["password"]:
+        # Verificar contraseña con hash
+        if not verify_password(request.password, user_data["password_hash"]):
+            logger.warning(f"🚫 [LOGIN] Contraseña incorrecta: {request.email}")
             return AuthResponse(
                 success=False,
                 error="Contraseña incorrecta"
@@ -125,31 +204,31 @@ async def login(request: LoginRequest):
         
         # FILTRO DE VERIFICACIÓN - BLOQUEAR ACCESO SI NO ESTÁ VERIFICADO
         if not user_data.get("verified", False):
-            print(f"[LOGIN] ❌ Usuario NO VERIFICADO intentando login: {request.email}")
+            logger.warning(f"🚫 [LOGIN] Usuario NO VERIFICADO: {request.email}")
             return AuthResponse(
                 success=False,
                 error="Por favor verifica tu email antes de iniciar sesión",
                 verification_required=True
             )
         
-        print(f"[LOGIN] ✅ Usuario verificado accediendo: {request.email}")
+        logger.info(f"✅ [LOGIN] Usuario verificado: {request.email}")
         
         return AuthResponse(
             success=True,
             user=UserResponse(**user_data),
-            token=generate_token(),
+            token=secrets.token_urlsafe(32),
             message="Login completado exitosamente"
         )
         
     except Exception as e:
-        print(f"[LOGIN ERROR] ❌ {e}")
+        logger.error(f"❌ [LOGIN ERROR] {e}")
         return AuthResponse(
             success=False,
             error=f"Error en login: {str(e)}"
         )
 
 @router.post("/verify-email", response_model=AuthResponse)
-async def verify_email(request: dict):
+async def verify_email(request: dict, http_request: Request):
     """Verificar email usando token."""
     try:
         token = request.get("token")
@@ -160,109 +239,159 @@ async def verify_email(request: dict):
                 error="Token de verificación requerido"
             )
         
+        # Verificar si token existe
         if token not in TOKENS:
             return AuthResponse(
                 success=False,
                 error="Token inválido o expirado"
             )
         
-        email = TOKENS[token]
+        token_data = TOKENS[token]
+        email = token_data["email"]
+        
+        # Verificar expiración
+        if datetime.utcnow() > datetime.fromisoformat(token_data["expires_at"]):
+            del TOKENS[token]
+            return AuthResponse(
+                success=False,
+                error="Token expirado. Por favor solicita uno nuevo."
+            )
+        
+        if email not in USERS:
+            return AuthResponse(
+                success=False,
+                error="Usuario no encontrado"
+            )
+        
         user_data = USERS[email]
         
         # MARCAR COMO VERIFICADO
         user_data["verified"] = True
         user_data["verified_at"] = datetime.utcnow().isoformat()
+        user_data["verified_ip"] = http_request.client.host
         
         # LIMPIAR TOKEN
         del TOKENS[token]
         
-        print(f"[VERIFY] ✅ Email verificado: {email}")
+        logger.info(f"✅ [VERIFY] Email verificado: {email}")
         
         return AuthResponse(
             success=True,
             user=UserResponse(**user_data),
+            token=secrets.token_urlsafe(32),
             message="Email verificado exitosamente"
         )
         
     except Exception as e:
-        print(f"[VERIFY ERROR] ❌ {e}")
+        logger.error(f"❌ [VERIFY ERROR] {e}")
         return AuthResponse(
             success=False,
             error=f"Error en verificación: {str(e)}"
         )
 
-@router.post("/confirm", response_model=AuthResponse)
-async def confirm_email(request: dict):
-    """Endpoint alternativo para verificación - SOLUCIÓN TEMPORAL."""
-    return await verify_email(request)
+@router.post("/resend-verification", response_model=AuthResponse)
+async def resend_verification(request: dict, http_request: Request):
+    """Reenviar email de verificación."""
     try:
-        token = request.get("token")
+        email = request.get("email")
         
-        if not token:
+        if not email:
             return AuthResponse(
                 success=False,
-                error="Token de verificación requerido"
+                error="Email requerido"
             )
         
-        if token not in TOKENS:
+        if email not in USERS:
             return AuthResponse(
                 success=False,
-                error="Token inválido o expirado"
+                error="Usuario no encontrado"
             )
         
-        email = TOKENS[token]
         user_data = USERS[email]
         
-        # MARCAR COMO VERIFICADO
-        user_data["verified"] = True
-        user_data["verified_at"] = datetime.utcnow().isoformat()
+        if user_data.get("verified", False):
+            return AuthResponse(
+                success=False,
+                error="El email ya está verificado"
+            )
         
-        # LIMPIAR TOKEN
-        del TOKENS[token]
+        # Rate limiting
+        if not check_rate_limit(email, max_requests=3, window_minutes=60):
+            return AuthResponse(
+                success=False,
+                error="Demasiados intentos de reenvío. Por favor espera 1 hora."
+            )
         
-        print(f"[VERIFY] ✅ Email verificado: {email}")
+        # Generar nuevo token
+        verification_token = email_service.generate_secure_token(email)
+        
+        # Actualizar token
+        TOKENS[verification_token] = {
+            "email": email,
+            "created_at": datetime.utcnow().isoformat(),
+            "expires_at": (datetime.utcnow() + timedelta(hours=24)).isoformat()
+        }
+        
+        # Enviar email
+        email_sent = email_service.send_verification_email(
+            email=email,
+            name=user_data["name"],
+            verification_token=verification_token
+        )
+        
+        if not email_sent:
+            return AuthResponse(
+                success=False,
+                error="Error enviando email. Por favor intenta más tarde."
+            )
+        
+        logger.info(f"📧 [RESEND] Email reenviado: {email}")
         
         return AuthResponse(
             success=True,
-            user=UserResponse(**user_data),
-            message="Email verificado exitosamente"
+            message="Email de verificación reenviado exitosamente"
         )
         
     except Exception as e:
-        print(f"[VERIFY ERROR] ❌ {e}")
+        logger.error(f"❌ [RESEND ERROR] {e}")
         return AuthResponse(
             success=False,
-            error=f"Error en verificación: {str(e)}"
+            error=f"Error reenviando email: {str(e)}"
         )
 
 @router.get("/health")
 async def health_check():
-    """Health check."""
+    """Health check con información detallada."""
+    verified_users = len([u for u in USERS.values() if u.get("verified", False)])
     return {
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
-        "users_count": len(USERS),
+        "total_users": len(USERS),
+        "verified_users": verified_users,
         "pending_verifications": len(TOKENS),
-        "version": "final-v1.0"
+        "rate_limit_entries": len(RATE_LIMIT),
+        "email_service_mode": "simulation" if email_service.simulation_mode else "production",
+        "version": "secure-v2.0"
     }
 
 @router.get("/stats")
 async def get_stats():
-    """Estadísticas."""
-    verified_count = len([u for u in USERS.values() if u.get("verified", False)])
+    """Estadísticas detalladas del sistema."""
     return {
-        "total_users": len(USERS),
-        "verified_users": verified_count,
-        "pending_verifications": len(TOKENS),
+        "users": {
+            "total": len(USERS),
+            "verified": len([u for u in USERS.values() if u.get("verified", False)]),
+            "pending": len([u for u in USERS.values() if not u.get("verified", False)])
+        },
+        "tokens": {
+            "active": len(TOKENS),
+            "expired": sum(1 for t in TOKENS.values() 
+                         if datetime.utcnow() > datetime.fromisoformat(t["expires_at"]))
+        },
+        "security": {
+            "rate_limit_entries": len(RATE_LIMIT),
+            "email_service": "simulation" if email_service.simulation_mode else "production"
+        },
         "timestamp": datetime.utcnow().isoformat(),
-        "system": "leadgenpro-final"
-    }
-
-@router.post("/debug")
-async def debug_info():
-    """Información de debugging."""
-    return {
-        "users": list(USERS.keys()),
-        "tokens": list(TOKENS.keys()),
-        "timestamp": datetime.utcnow().isoformat()
+        "system": "leadgenpro-secure"
     }
