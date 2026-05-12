@@ -269,18 +269,18 @@ def register(request: RegisterRequest):
     
     logger.info("Supabase client obtenido correctamente")
     
-    # ULTRA-SIMPLIFICADO: Respuesta inmediata sin dependencias
+    # ULTRA-SIMPLIFICADO: Respuesta inmediata SIN dependencias externas
     logger.info(f"[ULTRA] Registro solicitado para: {request.email}")
     
-    # Generar token simple
+    # Generar token simple SIN NADA ASÍNCRONO
     verification_token = secrets.token_urlsafe(32)
     logger.info(f"[ULTRA] Token generado: {verification_token[:10]}...")
     
-    # Respuesta inmediata garantizada
+    # RESPUESTA INMEDIATA GARANTIZADA - SIN ESPERAR NADA
     return AuthResponse(
         success=True,
         user=UserResponse(
-            id=f"user-{datetime.utcnow().timestamp()}",
+            id=f"user-{int(datetime.utcnow().timestamp())}",
             email=request.email,
             name=request.name,
             company=request.company,
