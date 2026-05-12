@@ -27,8 +27,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-# Importar sistema de cache optimizado
-from app.core.cache import cache_manager, rate_limit, cached
+# Cache en memoria para rate limiting
+user_cache = {}
+rate_limit_cache = {}
 
 class RegisterRequest(BaseModel):
     """Modelo optimizado para registro."""
@@ -55,14 +56,20 @@ class AuthResponse(BaseModel):
     error: Optional[str] = None
     message: Optional[str] = None
 
-@cached(ttl=300)
-def get_user_by_email(email: str) -> Optional[Dict]:
-    """Obtener usuario desde cache o base de datos."""
-    return cache_manager.get(f"user:{email}")
-
-def save_user_to_cache(user_data: Dict) -> None:
-    """Guardar usuario en cache."""
-    cache_manager.set(f"user:{user_data['email']}", user_data, ttl=3600)
+def rate_limit(email: str, limit: int = 5, window: int = 300) -> bool:
+    """Rate limiting simple."""
+    now = time.time()
+    if email not in rate_limit_cache:
+        rate_limit_cache[email] = []
+    
+    # Limpiar entradas viejas
+    rate_limit_cache[email] = [t for t in rate_limit_cache[email] if now - t < window]
+    
+    if len(rate_limit_cache[email]) >= limit:
+        return False
+    
+    rate_limit_cache[email].append(now)
+    return True
 
 def generate_secure_token(email: str) -> str:
     """Generar token seguro y único."""
@@ -90,8 +97,8 @@ async def register(request: RegisterRequest, background_tasks: BackgroundTasks):
                 error="Debes aceptar las Condiciones de Uso"
             )
         
-        # Rate limiting con sistema optimizado
-        if not cache_manager.is_rate_limited(request.email, limit=5, window=300):
+        # Rate limiting
+        if not rate_limit(request.email):
             return AuthResponse(
                 success=False,
                 error="Demasiados intentos. Intenta más tarde."
@@ -101,17 +108,14 @@ async def register(request: RegisterRequest, background_tasks: BackgroundTasks):
         verification_token = generate_secure_token(request.email)
         user_id = f"user_{int(time.time())}"
         
-        # Cache de usuario con sistema optimizado
-        user_data = {
-            "id": user_id,
+        # Cache de usuario (simulación de base de datos)
+        user_cache[user_id] = {
             "email": request.email,
             "name": request.name,
             "company": request.company,
             "created_at": datetime.utcnow().isoformat(),
             "verified": False
         }
-        
-        save_user_to_cache(user_data)
         
         # Email en background (no bloquea)
         def send_email_background():
@@ -162,23 +166,27 @@ async def login(request: dict):
         email = request.get("email")
         password = request.get("password")
         
-        # Rate limiting con sistema optimizado
-        if not cache_manager.is_rate_limited(email, limit=10, window=300):
+        # Rate limiting
+        if not rate_limit(email, limit=10, window=300):
             return AuthResponse(
                 success=False,
                 error="Demasiados intentos. Intenta más tarde."
             )
         
-        # Buscar usuario en cache optimizado
-        user_data = get_user_by_email(email)
+        # Buscar usuario en cache
+        user_found = None
+        for uid, user_data in user_cache.items():
+            if user_data["email"] == email:
+                user_found = (uid, user_data)
+                break
         
-        if not user_data:
+        if not user_found:
             return AuthResponse(
                 success=False,
                 error="Usuario no encontrado"
             )
         
-        user_id = user_data["id"]
+        user_id, user_data = user_found
         
         # Verificación simple (en producción sería hash)
         if password != "123456":  # Simulación
@@ -212,23 +220,21 @@ async def login(request: dict):
 
 @router.get("/health")
 async def health_check():
-    """Health check optimizado con cache manager."""
-    stats = cache_manager.get_stats()
+    """Health check optimizado."""
     return {
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
-        "cache_stats": stats,
-        "uptime": "operational",
-        "version": "2.0.0"
+        "cache_size": len(user_cache),
+        "rate_limit_size": len(rate_limit_cache),
+        "uptime": "operational"
     }
 
 @router.get("/stats")
 async def get_stats():
-    """Estadísticas del sistema con cache optimizado."""
-    stats = cache_manager.get_stats()
+    """Estadísticas del sistema."""
     return {
-        "cache_stats": stats,
+        "total_users": len(user_cache),
+        "active_sessions": len(rate_limit_cache),
         "timestamp": datetime.utcnow().isoformat(),
-        "performance": "optimized",
-        "system": "leadgenpro-v2"
+        "performance": "optimized"
     }

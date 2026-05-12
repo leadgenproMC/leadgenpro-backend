@@ -1,0 +1,38 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "app/main.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/healthz",
+      "dest": "app/main.py"
+    },
+    {
+      "src": "/auth/(.*)",
+      "dest": "app/main.py"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "app/main.py"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production",
+    "DATABASE_URL": "@postgres_url",
+    "JWT_SECRET": "@jwt_secret",
+    "REDIS_URL": "@redis_url",
+    "SMTP_HOST": "@smtp_host",
+    "SMTP_PORT": "@smtp_port",
+    "SMTP_USER": "@smtp_user",
+    "SMTP_PASSWORD": "@smtp_password"
+  },
+  "functions": {
+    "app/main.py": {
+      "runtime": "python3.11"
+    }
+  }
+}

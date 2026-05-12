@@ -5,6 +5,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from dotenv import load_dotenv
 import os
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 from .routers.health import router as health_router
 from .routers.credits import router as credits_router
@@ -31,10 +35,32 @@ def root():
     """Redirige a la documentaciÃ³n."""
     return RedirectResponse(url="/docs")
 
+@app.on_event("startup")
+async def startup_event():
+    logger.info("🚀 LeadGenPro Backend v2.0 starting up...")
+    
+    # Initialize cache system
+    try:
+        initialize_cache()
+        logger.info("✅ Cache system initialized")
+    except Exception as e:
+        logger.error(f"❌ Cache initialization error: {e}")
+    
+    # Test database connection
+    try:
+        supabase = get_supabase()
+        if supabase:
+            logger.info("✅ Supabase connection established")
+        else:
+            logger.warning("⚠️ Supabase connection failed")
+    except Exception as e:
+        logger.error(f"❌ Database connection error: {e}")
+    
+    logger.info("🎯 LeadGenPro Backend v2.0 ready!")
+
 app.include_router(health_router)
 app.include_router(auth_router)  # Auth endpoints
 app.include_router(credits_router, prefix="/credits", tags=["credits"])
 app.include_router(leads_router, prefix="/leads", tags=["leads"])
 app.include_router(chat_router, prefix="/chat", tags=["chat"])
 app.include_router(mailerlite_router)
-

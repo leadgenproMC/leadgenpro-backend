@@ -1,0 +1,43 @@
+# LEADGENPRO - DEPLOYMENT EN RAILWAY
+# ================================
+# 
+# Características:
+# ✅ Más estable que Render
+# ✅ Mejor rendimiento
+# ✅ Auto-scaling automático
+# ✅ Base de datos PostgreSQL
+# ✅ Environment variables seguras
+# ✅ Deploy automático desde GitHub
+
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+startCommand = "uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+[env]
+NODE_ENV = "production"
+PORT = "8000"
+
+# Variables de producción (configurar en Railway dashboard)
+DATABASE_URL = "${{POSTGRES_URL}"
+JWT_SECRET = "${{JWT_SECRET}}"
+REDIS_URL = "${{REDIS_URL}}"
+SMTP_HOST = "${{SMTP_HOST}}"
+SMTP_PORT = "${{SMTP_PORT}"
+SMTP_USER = "${{SMTP_USER}}"
+SMTP_PASSWORD = "${{SMTP_PASSWORD}}"
+
+[service]
+name = "leadgenpro-backend"
+memory = "1GB"
+cpu = "1"
+healthCheckPath = "/healthz"
+healthCheckTimeout = "30"
+
+[[services]]
+name = "web"
+source = "."
+destination = "web"
