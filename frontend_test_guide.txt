@@ -1,0 +1,76 @@
+==============================================
+GUIA DE PRUEBA DEL FRONTEND
+==============================================
+
+ESTADO ACTUAL:
+✅ Frontend: https://leadgenpro-frontend.netlify.app (FUNCIONANDO)
+✅ Backend Health: https://leadgenpro-backend-7oco.onrender.com/healthz (FUNCIONANDO)
+⚠️  Backend Register: Timeout (PROBLEMA TEMPORAL)
+
+==============================================
+SOLUCIÓN INMEDIATA:
+==============================================
+
+OPCIÓN 1 - PROBAR DIRECTAMENTE EN FRONTEND:
+1. Ve a: https://leadgenpro-frontend.netlify.app
+2. Intenta registrarte con cualquier email
+3. Si funciona, el problema está solo en el test con curl
+4. Si da error, anota el mensaje exacto
+
+OPCIÓN 2 - USAR EMAIL ÚNICO:
+Email: prueba$(Get-Date -Format "yyyyMMddHHmmss")@test.com
+Contraseña: 123456
+Nombre: Test User
+
+OPCIÓN 3 - VERIFICAR EN SWAGGER:
+1. Ve a: https://leadgenpro-backend-7oco.onrender.com/docs
+2. Busca el endpoint /auth/register
+3. Prueba directamente desde la interfaz
+
+==============================================
+DIAGNÓSTICO RÁPIDO:
+==============================================
+
+Si el frontend funciona pero curl da timeout:
+✅ El backend está funcionando correctamente
+✅ El problema es solo con las pruebas locales
+✅ Puedes continuar con el desarrollo normal
+
+Si el frontend también da error:
+❌ Hay un problema real en el backend
+❌ Necesita revisión de logs en Render
+
+==============================================
+MENSAJES DE ERROR COMUNES:
+==============================================
+
+"Error de conexión con el servidor":
+→ Backend caído o variables mal configuradas
+→ SOLUCIÓN: Verificar health check y variables
+
+"Usuario ya existe":
+→ El email ya está registrado
+→ SOLUCIÓN: Usar email diferente
+
+"Timeout":
+→ Problema temporal del backend
+→ SOLUCIÓN: Esperar unos minutos o reiniciar servicio
+
+==============================================
+PRÓXIMOS PASOS:
+==============================================
+
+1. Prueba en el frontend ahora mismo
+2. Si funciona, el problema está resuelto
+3. Si no funciona, envía el mensaje de error exacto
+4. Revisaremos logs de Render si es necesario
+
+==============================================
+CONTACTO SOPORTE:
+==============================================
+
+Si necesitas ayuda adicional:
+1. Captura pantalla del error
+2. Copia el mensaje exacto
+3. Indica fecha y hora del intento
+4. Envía todo para diagnóstico

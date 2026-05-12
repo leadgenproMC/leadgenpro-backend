@@ -1,0 +1,31 @@
+# COMANDOS PARA CONFIGURAR RENDER
+# Reemplaza los valores con tus credenciales reales
+
+# 1. Instalar Render CLI (si no lo tienes)
+npm install -g @render/cli
+
+# 2. Login en Render
+render login
+
+# 3. Configurar variables de entorno para leadgenpro-backend
+render env set SUPABASE_URL=https://tu-proyecto.supabase.co --service leadgenpro-backend
+render env set SUPABASE_SECRET_KEY=tu_supabase_secret_key_aqui --service leadgenpro-backend
+render env set SMTP_HOST=smtp.gmail.com --service leadgenpro-backend
+render env set SMTP_PORT=587 --service leadgenpro-backend
+render env set SMTP_USER=tu_email@gmail.com --service leadgenpro-backend
+render env set SMTP_PASSWORD=tu_app_password_de_gmail --service leadgenpro-backend
+render env set SMTP_FROM=tu_email@gmail.com --service leadgenpro-backend
+render env set SMTP_FROM_NAME=LeadGenPro --service leadgenpro-backend
+render env set FRONTEND_URL=https://leadgenpro-frontend.netlify.app --service leadgenpro-backend
+render env set CORS_ALLOW_ORIGINS=https://leadgenpro-frontend.netlify.app --service leadgenpro-backend
+
+# 4. Reiniciar el servicio para aplicar cambios
+render restart leadgenpro-backend
+
+# 5. Verificar que funcione
+curl https://leadgenpro-backend-7oco.onrender.com/healthz
+
+# NOTAS:
+# - Para obtener SUPABASE_URL y SUPABASE_SECRET_KEY: ve a tu dashboard de Supabase
+# - Para SMTP_PASSWORD: usa una "App Password" de Gmail, no tu contraseña normal
+# - Después de configurar, espera 2-3 minutos y prueba el registro

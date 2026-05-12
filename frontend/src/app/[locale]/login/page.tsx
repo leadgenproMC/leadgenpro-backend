@@ -37,6 +37,7 @@ export default function LoginPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
+        redirect: "follow"  // Seguir redirects automáticamente
       });
       const data = await response.json();
       if (data.success) {
@@ -48,12 +49,12 @@ export default function LoginPage() {
           sessionStorage.setItem("leadgenpro_user", JSON.stringify(data.user));
         }
         setMessage({ type: "success", text: `¡Bienvenido ${data.user.name}! Redirigiendo...` });
-        setTimeout(() => { window.location.href = `/${locale}/dashboard`; }, 1000);
+        setTimeout(() => { window.location.href = `/${locale}/dashboard`; }, 500);
       } else if (data.error === "EMAIL_NOT_CONFIRMED") {
-        // Email no verificado - redirigir a verificación
+        // Email no verificado - redirigir a verificación por email
         localStorage.setItem("leadgenpro_pending_email", email);
-        setMessage({ type: "error", text: "Debes verificar tu email primero. Redirigiendo..." });
-        setTimeout(() => { window.location.href = `/${locale}/verify-otp`; }, 1500);
+        setMessage({ type: "error", text: "Debes verificar tu email primero. Revisa tu bandeja de entrada..." });
+        setTimeout(() => { window.location.href = `/${locale}/verify-email`; }, 800);
       } else {
         setMessage({ type: "error", text: data.error || "Error al iniciar sesión" });
       }
@@ -80,6 +81,7 @@ export default function LoginPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password, name, company, agreed_to_terms: agreedToTerms }),
+        redirect: "follow"  // Seguir redirects automáticamente
       });
       
       console.log("[Register] Status response:", response.status);
@@ -95,16 +97,16 @@ export default function LoginPage() {
           localStorage.setItem("leadgenpro_token", data.token);
           localStorage.setItem("leadgenpro_user", JSON.stringify(data.user));
           setMessage({ type: "success", text: "¡Cuenta creada exitosamente! Redirigiendo..." });
-          setTimeout(() => { window.location.href = `/${locale}/dashboard`; }, 1500);
-        } else if (data.otp_code) {
-          // Mostrar código OTP y redirigir a verificación
-          console.log("[REGISTRO] Código OTP recibido:", data.otp_code);
+          setTimeout(() => { window.location.href = `/${locale}/dashboard`; }, 800);
+        } else if (data.verification_token) {
+          // Mostrar mensaje de email enviado y redirigir a dashboard
+          console.log("[REGISTRO] Token de verificación generado");
           localStorage.setItem("leadgenpro_pending_email", email);
           setMessage({ 
             type: "success", 
-            text: `¡Cuenta creada! Tu código de verificación es: ${data.otp_code}. Redirigiendo...` 
+            text: "¡Cuenta creada! Revisa tu email para verificarla. Redirigiendo al dashboard..." 
           });
-          setTimeout(() => { window.location.href = `/${locale}/verify-otp`; }, 3000);
+          setTimeout(() => { window.location.href = `/${locale}/dashboard`; }, 1500);
         } else {
           setMessage({ type: "error", text: "Error: No se recibió código de verificación" });
         }
