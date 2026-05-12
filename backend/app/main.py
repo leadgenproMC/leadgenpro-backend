@@ -37,8 +37,12 @@ def root():
 
 @app.on_event("startup")
 async def startup_event():
-    logger.info("🚀 LeadGenPro Backend Simple starting up...")
-    logger.info("🎯 LeadGenPro Backend Simple ready!")
+    logger.info("🚀 LeadGenPro Backend Final starting up...")
+    
+    # Forzar carga de routers
+    logger.info("📋 Loading auth router...")
+    
+    logger.info("🎯 LeadGenPro Backend Final ready!")
 
 app.include_router(health_router)
 app.include_router(auth_router)  # Auth endpoints
