@@ -109,7 +109,8 @@ async def register(request: RegisterRequest, background_tasks: BackgroundTasks):
             "name": request.name,
             "company": request.company,
             "created_at": datetime.utcnow().isoformat(),
-            "verified": False
+            "verified": False,
+            "verification_token": verification_token
         }
         
         save_user_to_cache(user_data)
@@ -245,6 +246,46 @@ async def get_stats():
         "performance": "optimized",
         "system": "leadgenpro-v2"
     }
+
+@router.post("/verify-email")
+async def verify_email(request: dict):
+    """
+    Verificar email usando token.
+    """
+    token = request.get("token")
+    
+    if not token:
+        return AuthResponse(
+            success=False,
+            error="Token de verificación requerido"
+        )
+    
+    # Buscar usuario por token
+    for user_key, user_data in cache_manager.memory_cache.items():
+        if user_key.startswith("user:") and user_data.get("verification_token") == token:
+            # Marcar como verificado
+            user_data["verified"] = True
+            user_data["verified_at"] = datetime.utcnow().isoformat()
+            del user_data["verification_token"]  # Remover token después de usar
+            
+            logger.info(f"[VERIFY] Email verificado: {user_data['email']}")
+            
+            return AuthResponse(
+                success=True,
+                user=UserResponse(
+                    id=user_data["id"],
+                    email=user_data["email"],
+                    name=user_data["name"],
+                    company=user_data["company"],
+                    created_at=user_data["created_at"]
+                ),
+                message="Email verificado exitosamente"
+            )
+    
+    return AuthResponse(
+        success=False,
+        error="Token de verificación inválido o expirado"
+    )
 
 @router.post("/clear-cache")
 async def clear_cache():
