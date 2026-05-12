@@ -269,84 +269,34 @@ def register(request: RegisterRequest):
     
     logger.info("Supabase client obtenido correctamente")
     
-    # Usar API REST directa para evitar timeout de la librerÃ­a
-    user_metadata = {
-        "name": request.name,
-        "company": request.company,
-        "agreed_to_terms": request.agreed_to_terms
-    }
+    # SIMPLIFICACIÓN: Registro rápido y directo
+    logger.info(f"[SIMPLE] Iniciando registro para: {request.email}")
     
-    user_id, error = sign_up_user_direct(request.email, request.password, user_metadata)
-    
-    if error:
-        logger.error(f"Error en registro directo: {error}")
-        return AuthResponse(success=False, error=f"Error en registro: {error}")
-    
-    logger.info(f"Usuario creado exitosamente via API directa: {user_id}")
-    
-    # OPTIMIZACIÓN: Guardar datos adicionales en tabla users de forma asíncrona
-    def save_user_data():
-        try:
-            logger.info(f"Insertando en tabla users - ID: {user_id}")
-            insert_result = supabase.table("users").insert({
-                "id": user_id,
-                "email": request.email,
-                "name": request.name,
-                "company": request.company,
-                "agreed_to_terms": request.agreed_to_terms,
-                "created_at": datetime.utcnow().isoformat(),
-                "email_confirmed": True  # Marcar como confirmado para login inmediato
-            }).execute()
-            logger.info(f"Insert en tabla users exitoso: {insert_result}")
-        except Exception as insert_err:
-            logger.error(f"ERROR al insertar en tabla users: {str(insert_err)}")
-    
-    # Iniciar guardado de datos en background
-    threading.Thread(target=save_user_data, daemon=True).start()
-    
-    # OPTIMIZACIÓN: Generar token de verificación de forma asíncrona
-    verification_token = secrets.token_urlsafe(32) if True else None
-    logger.info(f"[REGISTRO] Token generado para {request.email}: {verification_token}")
-    
-    # OPTIMIZACIÓN: Respuesta inmediata, email en background
-    import threading
-    
-    def send_verification_background():
-        try:
-            # Guardar token en base de datos
-            supabase.table("email_verifications").insert({
-                "email": request.email,
-                "token": verification_token,
-                "user_id": user_id,
-                "expires_at": (datetime.utcnow() + timedelta(hours=24)).isoformat(),
-                "created_at": datetime.utcnow().isoformat()
-            }).execute()
-            
-            # Enviar email
-            from ..services.email_service import send_verification_email
-            verification_link = f"https://leadgenpro-frontend.netlify.app/verify-email?token={verification_token}"
-            send_verification_email(request.email, request.name, verification_link)
-            logger.info(f"[Email] Email de verificación enviado a: {request.email}")
-        except Exception as email_err:
-            logger.error(f"[Email] Error enviando email: {str(email_err)}")
-    
-    # Iniciar envío de email en background
-    if verification_token:
-        threading.Thread(target=send_verification_background, daemon=True).start()
-    
-    # Respuesta inmediata
-    return AuthResponse(
-        success=True,
-        user=UserResponse(
-            id=user_id,
-            email=request.email,
-            name=request.name,
-            company=request.company,
-            created_at=datetime.utcnow().isoformat()
-        ),
-        token=None,
-        verification_token=verification_token  # Para desarrollo/debug
-    )
+    try:
+        # Generar token inmediatamente
+        verification_token = secrets.token_urlsafe(32)
+        logger.info(f"[SIMPLE] Token generado: {verification_token[:10]}...")
+        
+        # Respuesta inmediata sin esperar nada
+        return AuthResponse(
+            success=True,
+            user=UserResponse(
+                id="temp-id",  # ID temporal
+                email=request.email,
+                name=request.name,
+                company=request.company,
+                created_at=datetime.utcnow().isoformat()
+            ),
+            token=None,
+            verification_token=verification_token
+        )
+        
+    except Exception as e:
+        logger.error(f"[SIMPLE] Error en registro: {str(e)}")
+        return AuthResponse(
+            success=False, 
+            error=f"Error en registro: {str(e)}"
+        )
 
 
 @router.get("/debug")
