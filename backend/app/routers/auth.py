@@ -300,35 +300,37 @@ def register(request: RegisterRequest):
         logger.error(f"ERROR al insertar en tabla users: {str(insert_err)}")
         # No fallamos aquÃ­, el usuario ya fue creado en Auth
     
-    # Generar token de verificación por email
-    verification_token = None
-    try:
-        import secrets
-        verification_token = secrets.token_urlsafe(32)
-        logger.info(f"[REGISTRO] Token generado para {request.email}: {verification_token}")
-        
-        # Guardar token en base de datos
-        supabase.table("email_verifications").insert({
-            "email": request.email,
-            "token": verification_token,
-            "user_id": user_id,
-            "expires_at": (datetime.utcnow() + timedelta(hours=24)).isoformat(),
-            "created_at": datetime.utcnow().isoformat()
-        }).execute()
-        
-    except Exception as token_err:
-        logger.error(f"[REGISTRO] Error generando token: {str(token_err)}")
-        verification_token = None
+    # OPTIMIZACIÓN: Generar token de verificación de forma asíncrona
+    verification_token = secrets.token_urlsafe(32) if True else None
+    logger.info(f"[REGISTRO] Token generado para {request.email}: {verification_token}")
     
-    # Enviar email con link de verificación
-    try:
-        from ..services.email_service import send_verification_email
-        verification_link = f"https://leadgenpro-frontend.netlify.app/verify-email?token={verification_token}"
-        send_verification_email(request.email, request.name, verification_link)
-        logger.info(f"[Email] Email de verificación enviado a: {request.email}")
-    except Exception as email_err:
-        logger.error(f"[Email] Error enviando email: {str(email_err)}")
+    # OPTIMIZACIÓN: Respuesta inmediata, email en background
+    import threading
     
+    def send_verification_background():
+        try:
+            # Guardar token en base de datos
+            supabase.table("email_verifications").insert({
+                "email": request.email,
+                "token": verification_token,
+                "user_id": user_id,
+                "expires_at": (datetime.utcnow() + timedelta(hours=24)).isoformat(),
+                "created_at": datetime.utcnow().isoformat()
+            }).execute()
+            
+            # Enviar email
+            from ..services.email_service import send_verification_email
+            verification_link = f"https://leadgenpro-frontend.netlify.app/verify-email?token={verification_token}"
+            send_verification_email(request.email, request.name, verification_link)
+            logger.info(f"[Email] Email de verificación enviado a: {request.email}")
+        except Exception as email_err:
+            logger.error(f"[Email] Error enviando email: {str(email_err)}")
+    
+    # Iniciar envío de email en background
+    if verification_token:
+        threading.Thread(target=send_verification_background, daemon=True).start()
+    
+    # Respuesta inmediata
     return AuthResponse(
         success=True,
         user=UserResponse(
