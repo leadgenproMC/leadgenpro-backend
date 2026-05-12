@@ -61,11 +61,18 @@ class AuthResponse(BaseModel):
 
 def hash_password(password: str) -> str:
     """Hash seguro de contraseña."""
-    return hashlib.sha256(password.encode()).hexdigest()
+    hash_result = hashlib.sha256(password.encode()).hexdigest()
+    print(f"🔐 [HASH] Password: {password} -> Hash: {hash_result}")
+    return hash_result
 
 def verify_password(password: str, hashed: str) -> bool:
     """Verificar contraseña."""
-    return hash_password(password) == hashed
+    input_hash = hash_password(password)
+    result = input_hash == hashed
+    print(f"🔍 [VERIFY] Input: {password} -> {input_hash}")
+    print(f"🔍 [VERIFY] Stored: {hashed}")
+    print(f"🔍 [VERIFY] Match: {result}")
+    return result
 
 def check_rate_limit(email: str, max_requests: int = 5, window_minutes: int = 15) -> bool:
     """Rate limiting por email."""
