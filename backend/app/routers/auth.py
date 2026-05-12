@@ -189,7 +189,11 @@ async def login(request: dict):
             )
         
         # VERIFICACIÓN DE EMAIL - FILTRO CRÍTICO
+        logger.info(f"[LOGIN DEBUG] Usuario data: {user_data}")
+        logger.info(f"[LOGIN DEBUG] Verified status: {user_data.get('verified', False)}")
+        
         if not user_data.get("verified", False):
+            logger.warning(f"[LOGIN] Usuario no verificado intentando login: {email}")
             return AuthResponse(
                 success=False,
                 error="Por favor verifica tu email antes de iniciar sesión",
@@ -240,4 +244,16 @@ async def get_stats():
         "timestamp": datetime.utcnow().isoformat(),
         "performance": "optimized",
         "system": "leadgenpro-v2"
+    }
+
+@router.post("/clear-cache")
+async def clear_cache():
+    """Limpiar todo el cache - solo para debugging."""
+    cache_manager.memory_cache.clear()
+    cache_manager.rate_limits.clear()
+    cache_manager.session_cache.clear()
+    return {
+        "status": "cache_cleared",
+        "timestamp": datetime.utcnow().isoformat(),
+        "message": "Cache limpiado exitosamente"
     }
