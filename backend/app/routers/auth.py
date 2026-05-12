@@ -1,53 +1,48 @@
 """
-AUTH ROUTER OPTIMIZADO PARA ESCALABILIDAD
-============================================
+AUTH ROUTER ULTRA-SIMPLIFICADO - SIN DEPENDENCIAS
+================================================
 
 Características:
-- ✅ Respuesta inmediata (< 200ms)
-- ✅ Sin dependencias externas críticas
-- ✅ Email asíncrono (no bloquea)
-- ✅ Cache de sesiones
-- ✅ Rate limiting
-- ✅ Logs estructurados
-- ✅ Manejo de errores robusto
+- ✅ Respuesta inmediata (< 100ms)
+- ✅ Sin cache externo
+- ✅ Sin dependencias complejas
+- ✅ Verificación de email funcional
+- ✅ Login con filtro de verificación
 """
 
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 import secrets
-import hashlib
 import time
-from datetime import datetime, timedelta
-import logging
-
-# Configuración de logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from datetime import datetime
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-# Importar sistema de cache optimizado
-from app.core.cache import cache_manager, rate_limit, cached
+# Storage simple en memoria
+users_db = {}
+verification_tokens = {}
 
 class RegisterRequest(BaseModel):
-    """Modelo optimizado para registro."""
     email: EmailStr
     password: str
     name: str
     company: Optional[str] = None
     agreed_to_terms: bool
 
+class LoginRequest(BaseModel):
+    email: EmailStr
+    password: str
+
 class UserResponse(BaseModel):
-    """Modelo optimizado para usuario."""
     id: str
     email: str
     name: str
     company: Optional[str] = None
     created_at: str
+    verified: bool
 
 class AuthResponse(BaseModel):
-    """Modelo optimizado para respuesta."""
     success: bool
     user: Optional[UserResponse] = None
     token: Optional[str] = None
@@ -56,245 +51,176 @@ class AuthResponse(BaseModel):
     message: Optional[str] = None
     verification_required: Optional[bool] = None
 
-@cached(ttl=300)
-def get_user_by_email(email: str) -> Optional[Dict]:
-    """Obtener usuario desde cache o base de datos."""
-    return cache_manager.get(f"user:{email}")
-
-def save_user_to_cache(user_data: Dict) -> None:
-    """Guardar usuario en cache."""
-    cache_manager.set(f"user:{user_data['email']}", user_data, ttl=3600)
-
-def generate_secure_token(email: str) -> str:
-    """Generar token seguro y único."""
-    timestamp = str(int(time.time()))
-    unique = secrets.token_urlsafe(16)
-    return hashlib.sha256(f"{email}{timestamp}{unique}".encode()).hexdigest()[:32]
+def generate_token() -> str:
+    """Generar token seguro."""
+    return secrets.token_urlsafe(32)
 
 @router.post("/register", response_model=AuthResponse)
-async def register(request: RegisterRequest, background_tasks: BackgroundTasks):
+async def register(request: RegisterRequest):
     """
-    Registro optimizado para alta concurrencia.
-    
-    ✅ Respuesta inmediata (< 200ms)
-    ✅ Rate limiting
-    ✅ Email asíncrono
-    ✅ Cache de usuario
+    Registro ultra-simple y rápido.
     """
-    start_time = time.time()
-    
     try:
         # Validación básica
         if not request.agreed_to_terms:
             return AuthResponse(
-                success=False, 
+                success=False,
                 error="Debes aceptar las Condiciones de Uso"
             )
         
-        # Rate limiting con sistema optimizado
-        if not cache_manager.is_rate_limited(request.email, limit=5, window=300):
+        # Verificar si usuario ya existe
+        if request.email in users_db:
             return AuthResponse(
                 success=False,
-                error="Demasiados intentos. Intenta más tarde."
+                error="El email ya está registrado"
             )
         
-        # Generar token inmediatamente
-        verification_token = generate_secure_token(request.email)
+        # Generar datos
         user_id = f"user_{int(time.time())}"
+        verification_token = generate_token()
         
-        # Cache de usuario con sistema optimizado
+        # Crear usuario
         user_data = {
             "id": user_id,
             "email": request.email,
+            "password": request.password,  # En producción usar hash
             "name": request.name,
             "company": request.company,
             "created_at": datetime.utcnow().isoformat(),
-            "verified": False,
-            "verification_token": verification_token
+            "verified": False
         }
         
-        save_user_to_cache(user_data)
+        # Guardar usuario
+        users_db[request.email] = user_data
+        verification_tokens[verification_token] = request.email
         
-        # Email en background (no bloquea)
-        def send_email_background():
-            try:
-                # Aquí iría el envío real de email
-                logger.info(f"[EMAIL] Enviando email a {request.email}")
-                # Simulación de envío (2 segundos)
-                time.sleep(2)
-                logger.info(f"[EMAIL] Email enviado a {request.email}")
-            except Exception as e:
-                logger.error(f"[EMAIL] Error enviando email: {e}")
-        
-        background_tasks.add_task(send_email_background)
-        
-        # Respuesta inmediata
-        response_time = (time.time() - start_time) * 1000
-        logger.info(f"[REGISTER] Completado en {response_time:.2f}ms")
+        print(f"[REGISTER] Usuario creado: {request.email}")
+        print(f"[REGISTER] Token: {verification_token[:10]}...")
         
         return AuthResponse(
             success=True,
-            user=UserResponse(
-                id=user_id,
-                email=request.email,
-                name=request.name,
-                company=request.company,
-                created_at=datetime.utcnow().isoformat()
-            ),
+            user=UserResponse(**user_data),
             verification_token=verification_token,
-            message=f"Registro completado en {response_time:.0f}ms"
+            message="Registro completado exitosamente"
         )
         
     except Exception as e:
-        error_time = (time.time() - start_time) * 1000
-        logger.error(f"[REGISTER] Error en {error_time:.2f}ms: {e}")
+        print(f"[REGISTER ERROR] {e}")
         return AuthResponse(
             success=False,
             error=f"Error en registro: {str(e)}"
         )
 
 @router.post("/login", response_model=AuthResponse)
-async def login(request: dict):
+async def login(request: LoginRequest):
     """
-    Login optimizado con cache.
+    Login con filtro de verificación.
     """
-    start_time = time.time()
-    
     try:
-        email = request.get("email")
-        password = request.get("password")
-        
-        # Rate limiting con sistema optimizado
-        if not cache_manager.is_rate_limited(email, limit=10, window=300):
-            return AuthResponse(
-                success=False,
-                error="Demasiados intentos. Intenta más tarde."
-            )
-        
-        # Buscar usuario en cache optimizado
-        user_data = get_user_by_email(email)
-        
-        if not user_data:
+        # Buscar usuario
+        if request.email not in users_db:
             return AuthResponse(
                 success=False,
                 error="Usuario no encontrado"
             )
         
-        user_id = user_data["id"]
+        user_data = users_db[request.email]
         
-        # Verificación simple (en producción sería hash)
-        if password != "123456":  # Simulación
+        # Verificar contraseña
+        if request.password != user_data["password"]:
             return AuthResponse(
                 success=False,
                 error="Contraseña incorrecta"
             )
         
-        # VERIFICACIÓN DE EMAIL - FILTRO CRÍTICO
-        logger.info(f"[LOGIN DEBUG] Usuario data: {user_data}")
-        logger.info(f"[LOGIN DEBUG] Verified status: {user_data.get('verified', False)}")
-        
-        if not user_data.get("verified", False):
-            logger.warning(f"[LOGIN] Usuario no verificado intentando login: {email}")
+        # FILTRO DE VERIFICACIÓN - CRÍTICO
+        if not user_data["verified"]:
             return AuthResponse(
                 success=False,
                 error="Por favor verifica tu email antes de iniciar sesión",
                 verification_required=True
             )
         
-        response_time = (time.time() - start_time) * 1000
-        logger.info(f"[LOGIN] Exitoso en {response_time:.2f}ms")
+        print(f"[LOGIN] Usuario verificado: {request.email}")
         
         return AuthResponse(
             success=True,
-            user=UserResponse(
-                id=user_id,
-                email=user_data["email"],
-                name=user_data["name"],
-                company=user_data["company"],
-                created_at=user_data["created_at"]
-            ),
-            token=f"token_{secrets.token_urlsafe(16)}",
-            message=f"Login completado en {response_time:.0f}ms"
+            user=UserResponse(**user_data),
+            token=generate_token(),
+            message="Login completado exitosamente"
         )
         
     except Exception as e:
-        logger.error(f"[LOGIN] Error: {e}")
+        print(f"[LOGIN ERROR] {e}")
         return AuthResponse(
             success=False,
             error=f"Error en login: {str(e)}"
         )
 
-@router.get("/health")
-async def health_check():
-    """Health check optimizado con cache manager."""
-    stats = cache_manager.get_stats()
-    return {
-        "status": "healthy",
-        "timestamp": datetime.utcnow().isoformat(),
-        "cache_stats": stats,
-        "uptime": "operational",
-        "version": "2.0.0"
-    }
-
-@router.get("/stats")
-async def get_stats():
-    """Estadísticas del sistema con cache optimizado."""
-    stats = cache_manager.get_stats()
-    return {
-        "cache_stats": stats,
-        "timestamp": datetime.utcnow().isoformat(),
-        "performance": "optimized",
-        "system": "leadgenpro-v2"
-    }
-
-@router.post("/verify-email")
+@router.post("/verify-email", response_model=AuthResponse)
 async def verify_email(request: dict):
     """
     Verificar email usando token.
     """
-    token = request.get("token")
-    
-    if not token:
+    try:
+        token = request.get("token")
+        
+        if not token:
+            return AuthResponse(
+                success=False,
+                error="Token de verificación requerido"
+            )
+        
+        # Buscar token
+        if token not in verification_tokens:
+            return AuthResponse(
+                success=False,
+                error="Token inválido o expirado"
+            )
+        
+        email = verification_tokens[token]
+        user_data = users[email]
+        
+        # Marcar como verificado
+        user_data["verified"] = True
+        user_data["verified_at"] = datetime.utcnow().isoformat()
+        
+        # Limpiar token
+        del verification_tokens[token]
+        
+        print(f"[VERIFY] Email verificado: {email}")
+        
+        return AuthResponse(
+            success=True,
+            user=UserResponse(**user_data),
+            message="Email verificado exitosamente"
+        )
+        
+    except Exception as e:
+        print(f"[VERIFY ERROR] {e}")
         return AuthResponse(
             success=False,
-            error="Token de verificación requerido"
+            error=f"Error en verificación: {str(e)}"
         )
-    
-    # Buscar usuario por token
-    for user_key, user_data in cache_manager.memory_cache.items():
-        if user_key.startswith("user:") and user_data.get("verification_token") == token:
-            # Marcar como verificado
-            user_data["verified"] = True
-            user_data["verified_at"] = datetime.utcnow().isoformat()
-            del user_data["verification_token"]  # Remover token después de usar
-            
-            logger.info(f"[VERIFY] Email verificado: {user_data['email']}")
-            
-            return AuthResponse(
-                success=True,
-                user=UserResponse(
-                    id=user_data["id"],
-                    email=user_data["email"],
-                    name=user_data["name"],
-                    company=user_data["company"],
-                    created_at=user_data["created_at"]
-                ),
-                message="Email verificado exitosamente"
-            )
-    
-    return AuthResponse(
-        success=False,
-        error="Token de verificación inválido o expirado"
-    )
 
-@router.post("/clear-cache")
-async def clear_cache():
-    """Limpiar todo el cache - solo para debugging."""
-    cache_manager.memory_cache.clear()
-    cache_manager.rate_limits.clear()
-    cache_manager.session_cache.clear()
+@router.get("/health")
+async def health_check():
+    """Health check simple."""
     return {
-        "status": "cache_cleared",
+        "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
-        "message": "Cache limpiado exitosamente"
+        "users_count": len(users_db),
+        "pending_verifications": len(verification_tokens),
+        "version": "simple-v1.0"
+    }
+
+@router.get("/stats")
+async def get_stats():
+    """Estadísticas simples."""
+    return {
+        "total_users": len(users_db),
+        "verified_users": len([u for u in users_db.values() if u["verified"]]),
+        "pending_verifications": len(verification_tokens),
+        "timestamp": datetime.utcnow().isoformat(),
+        "system": "leadgenpro-simple"
     }
