@@ -6,6 +6,7 @@ from fastapi.responses import RedirectResponse
 from dotenv import load_dotenv
 import os
 import logging
+from datetime import datetime
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -47,7 +48,18 @@ async def startup_event():
     logger.info("🎯 LeadGenPro Backend Final ready!")
 
 app.include_router(health_router)
-app.include_router(auth_router)  # Auth endpoints
+app.include_router(auth_router)  # Auth endpoints - FIXED VERSION
+
+# Nuevo endpoint for testing
+@app.get("/test")
+def test_endpoint():
+    """Test endpoint para verificar deploy."""
+    return {
+        "status": "deployed",
+        "timestamp": datetime.utcnow().isoformat(),
+        "version": "fixed-v4.0",
+        "message": "Nuevo deploy funcionando"
+    }
 app.include_router(credits_router, prefix="/credits", tags=["credits"])
 app.include_router(leads_router, prefix="/leads", tags=["leads"])
 app.include_router(chat_router, prefix="/chat", tags=["chat"])
