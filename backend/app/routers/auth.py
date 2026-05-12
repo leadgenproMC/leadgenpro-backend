@@ -191,6 +191,50 @@ async def verify_email(request: dict):
             error=f"Error en verificación: {str(e)}"
         )
 
+@router.post("/confirm", response_model=AuthResponse)
+async def confirm_email(request: dict):
+    """Endpoint alternativo para verificación - SOLUCIÓN TEMPORAL."""
+    return await verify_email(request)
+    try:
+        token = request.get("token")
+        
+        if not token:
+            return AuthResponse(
+                success=False,
+                error="Token de verificación requerido"
+            )
+        
+        if token not in TOKENS:
+            return AuthResponse(
+                success=False,
+                error="Token inválido o expirado"
+            )
+        
+        email = TOKENS[token]
+        user_data = USERS[email]
+        
+        # MARCAR COMO VERIFICADO
+        user_data["verified"] = True
+        user_data["verified_at"] = datetime.utcnow().isoformat()
+        
+        # LIMPIAR TOKEN
+        del TOKENS[token]
+        
+        print(f"[VERIFY] ✅ Email verificado: {email}")
+        
+        return AuthResponse(
+            success=True,
+            user=UserResponse(**user_data),
+            message="Email verificado exitosamente"
+        )
+        
+    except Exception as e:
+        print(f"[VERIFY ERROR] ❌ {e}")
+        return AuthResponse(
+            success=False,
+            error=f"Error en verificación: {str(e)}"
+        )
+
 @router.get("/health")
 async def health_check():
     """Health check."""
