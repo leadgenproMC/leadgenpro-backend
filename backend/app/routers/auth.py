@@ -349,6 +349,17 @@ def register(request: RegisterRequest):
     )
 
 
+@router.get("/debug")
+def debug_endpoint():
+    """Endpoint simple para diagnóstico de conexión."""
+    return {
+        "status": "ok",
+        "message": "Backend funcionando correctamente",
+        "timestamp": datetime.utcnow().isoformat(),
+        "environment": "production"
+    }
+
+
 @router.post("/verify-email")
 def verify_email(request: dict):
     """
