@@ -16,6 +16,8 @@ from .routers.leads import router as leads_router
 from .routers.chat import router as chat_router
 from .routers.mailerlite import router as mailerlite_router
 from .routers.auth import router as auth_router
+# Force reload of secure auth
+print("🔒 Loading SECURE auth router...")
 from .config import get_cors_origins
 
 load_dotenv()
