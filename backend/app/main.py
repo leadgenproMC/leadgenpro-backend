@@ -37,26 +37,8 @@ def root():
 
 @app.on_event("startup")
 async def startup_event():
-    logger.info("🚀 LeadGenPro Backend v2.0 starting up...")
-    
-    # Initialize cache system
-    try:
-        initialize_cache()
-        logger.info("✅ Cache system initialized")
-    except Exception as e:
-        logger.error(f"❌ Cache initialization error: {e}")
-    
-    # Test database connection
-    try:
-        supabase = get_supabase()
-        if supabase:
-            logger.info("✅ Supabase connection established")
-        else:
-            logger.warning("⚠️ Supabase connection failed")
-    except Exception as e:
-        logger.error(f"❌ Database connection error: {e}")
-    
-    logger.info("🎯 LeadGenPro Backend v2.0 ready!")
+    logger.info("🚀 LeadGenPro Backend Simple starting up...")
+    logger.info("🎯 LeadGenPro Backend Simple ready!")
 
 app.include_router(health_router)
 app.include_router(auth_router)  # Auth endpoints
