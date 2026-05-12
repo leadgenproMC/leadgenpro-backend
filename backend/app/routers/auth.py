@@ -54,6 +54,7 @@ class AuthResponse(BaseModel):
     verification_token: Optional[str] = None
     error: Optional[str] = None
     message: Optional[str] = None
+    verification_required: Optional[bool] = None
 
 @cached(ttl=300)
 def get_user_by_email(email: str) -> Optional[Dict]:
@@ -185,6 +186,14 @@ async def login(request: dict):
             return AuthResponse(
                 success=False,
                 error="Contraseña incorrecta"
+            )
+        
+        # VERIFICACIÓN DE EMAIL - FILTRO CRÍTICO
+        if not user_data.get("verified", False):
+            return AuthResponse(
+                success=False,
+                error="Por favor verifica tu email antes de iniciar sesión",
+                verification_required=True
             )
         
         response_time = (time.time() - start_time) * 1000
