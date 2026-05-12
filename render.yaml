@@ -4,7 +4,9 @@ services:
     runtime: python
     plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1
     pythonVersion: 3.11.0
     envGroup: evg-d806khho3t8c73dg66og
     healthCheckPath: /healthz
+    healthCheckTimeout: 30
+    autoDeploy: true
