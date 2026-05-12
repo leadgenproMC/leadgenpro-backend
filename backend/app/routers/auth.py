@@ -1,6 +1,6 @@
 """
-AUTH ROUTER SEGURO - SISTEMA COMPLETO CON EMAIL REAL
-=================================================
+AUTH ROUTER SEGURO - SISTEMA COMPLETO CON EMAIL REAL - V2.1
+===========================================================
 
 Características:
 - ✅ Email verification real
@@ -12,6 +12,8 @@ Características:
 """
 
 from fastapi import APIRouter, HTTPException, Request
+
+print("🔒 AUTH ROUTER SEGURO V2.1 CARGADO")
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 import secrets
